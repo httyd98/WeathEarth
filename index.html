@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>WheathEarth</title>
+    <meta
+      name="description"
+      content="Globo 3D con meteo globale in tempo quasi reale, ciclo giorno/notte e controlli di zoom."
+    />
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <div id="scene-root" aria-label="Globo 3D con dati meteo globali"></div>
+      <aside class="hud">
+        <div class="panel brand-panel">
+          <p class="eyebrow">Global Weather Observatory</p>
+          <h1>WheathEarth</h1>
+          <p class="lede">
+            Condizioni meteo attuali campionate su tutto il pianeta, con ciclo
+            giorno/notte sincronizzato all'ora reale.
+          </p>
+          <div class="chips">
+            <span class="chip">Zoom a rotella</span>
+            <span class="chip">Drag per orbitare</span>
+            <span class="chip">Click sui punti</span>
+          </div>
+        </div>
+
+        <div class="panel metrics-panel">
+          <div class="metrics-grid">
+            <div>
+              <p class="label">Ultimo refresh</p>
+              <p id="last-refresh" class="value">In attesa...</p>
+            </div>
+            <div>
+              <p class="label">Prossimo refresh</p>
+              <p id="next-refresh" class="value">-</p>
+            </div>
+            <div>
+              <p class="label">Punti meteo</p>
+              <p id="station-count" class="value">0</p>
+            </div>
+            <div>
+              <p class="label">Temperatura media</p>
+              <p id="avg-temp" class="value">-</p>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="refresh-button" type="button">Aggiorna ora</button>
+            <p id="status-line" class="status-line">Connessione ai feed pubblici...</p>
+          </div>
+        </div>
+
+        <div class="panel details-panel">
+          <div class="section-heading">
+            <p class="eyebrow">Punto selezionato</p>
+            <p id="selection-name" class="section-title">Nessun punto selezionato</p>
+          </div>
+          <dl class="details-grid">
+            <div>
+              <dt>Condizione</dt>
+              <dd id="selection-condition">-</dd>
+            </div>
+            <div>
+              <dt>Temperatura</dt>
+              <dd id="selection-temperature">-</dd>
+            </div>
+            <div>
+              <dt>Vento</dt>
+              <dd id="selection-wind">-</dd>
+            </div>
+            <div>
+              <dt>Umidità</dt>
+              <dd id="selection-humidity">-</dd>
+            </div>
+            <div>
+              <dt>Coordinate</dt>
+              <dd id="selection-coordinates">-</dd>
+            </div>
+            <div>
+              <dt>Fase solare</dt>
+              <dd id="selection-daylight">-</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="panel legend-panel">
+          <div class="section-heading">
+            <p class="eyebrow">Legenda</p>
+            <p class="section-title">Temperatura dei marker</p>
+          </div>
+          <div class="legend-bar" aria-hidden="true"></div>
+          <div class="legend-scale">
+            <span>-25°C</span>
+            <span>0°C</span>
+            <span>20°C</span>
+            <span>40°C</span>
+          </div>
+          <p class="footnote">
+            Fonte meteo pubblica: Open-Meteo. Le richieste vengono eseguite in
+            batch per mantenere refresh molto rapidi a scala globale.
+          </p>
+        </div>
+      </aside>
+    </div>
+  </body>
+</html>
