@@ -16,6 +16,36 @@
   <body>
     <div class="app-shell">
       <div id="scene-root" aria-label="Globo 3D con dati meteo globali"></div>
+
+      <div class="scene-controls" aria-label="Controlli scena">
+        <button
+          id="toggle-markers-button"
+          class="toggle-button"
+          type="button"
+        >
+          Punti meteo: ON
+        </button>
+        <button
+          id="toggle-daynight-button"
+          class="toggle-button"
+          type="button"
+        >
+          Vista giorno/notte: ON
+        </button>
+      </div>
+
+      <div class="search-dock">
+        <form id="search-form" class="search-form" autocomplete="off">
+          <input
+            id="search-input"
+            type="text"
+            placeholder="Cerca città, indirizzo o lat,lon (es: 41.9028, 12.4964)"
+            aria-label="Cerca località o coordinate"
+          />
+          <button id="search-button" type="submit">Vai</button>
+        </form>
+      </div>
+
       <aside class="hud">
         <div class="panel brand-panel">
           <p class="eyebrow">Global Weather Observatory</p>
@@ -27,7 +57,7 @@
           <div class="chips">
             <span class="chip">Zoom a rotella</span>
             <span class="chip">Drag per orbitare</span>
-            <span class="chip">Click sui punti</span>
+            <span class="chip">Click su qualsiasi area</span>
           </div>
         </div>
 
@@ -71,12 +101,32 @@
               <dd id="selection-temperature">-</dd>
             </div>
             <div>
+              <dt>Percepita</dt>
+              <dd id="selection-feels-like">-</dd>
+            </div>
+            <div>
               <dt>Vento</dt>
               <dd id="selection-wind">-</dd>
             </div>
             <div>
+              <dt>Raffiche</dt>
+              <dd id="selection-gusts">-</dd>
+            </div>
+            <div>
               <dt>Umidità</dt>
               <dd id="selection-humidity">-</dd>
+            </div>
+            <div>
+              <dt>Pressione</dt>
+              <dd id="selection-pressure">-</dd>
+            </div>
+            <div>
+              <dt>Nuvolosità</dt>
+              <dd id="selection-cloud-cover">-</dd>
+            </div>
+            <div>
+              <dt>Precipitazioni</dt>
+              <dd id="selection-precipitation">-</dd>
             </div>
             <div>
               <dt>Coordinate</dt>
@@ -86,7 +136,17 @@
               <dt>Fase solare</dt>
               <dd id="selection-daylight">-</dd>
             </div>
+            <div>
+              <dt>Fuso orario</dt>
+              <dd id="selection-timezone">-</dd>
+            </div>
           </dl>
+          <div class="forecast-block">
+            <p class="eyebrow">Previsioni prossimi 5 giorni</p>
+            <ul id="forecast-list" class="forecast-list">
+              <li>In attesa dati previsionali...</li>
+            </ul>
+          </div>
         </div>
 
         <div class="panel legend-panel">
