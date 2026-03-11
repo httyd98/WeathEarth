@@ -239,3 +239,20 @@ button:disabled {
     font-size: 0.80rem;
   }
 }
+
+#provider-api-key.key-state-required {
+  border-color: #e53e3e;
+  box-shadow: 0 0 0 2px rgba(229, 62, 62, 0.25);
+}
+
+#provider-api-key.key-state-optional {
+  border-color: #4299e1;
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.25);
+}
+
+.provider-key-note {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}

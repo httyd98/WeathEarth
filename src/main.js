@@ -36,7 +36,9 @@ import {
 import {
   loadStoredProviderId,
   storeApiKey,
-  getStoredApiKey
+  getStoredApiKey,
+  loadWeatherSnapshot,
+  applyCachedWeather
 } from "./weather/cache.js";
 
 // UI
@@ -81,11 +83,37 @@ initMarkers(weatherState.points.length);
 
 // Wire up provider change callback (needs samplePoints)
 setOnProviderChange(() => {
-  refreshGlobalWeather(false, samplePoints, summaryPoints);
+  const newProvider = getActiveProvider();
+
+  // Only refresh global data if the new provider is itself a global-capable one
+  // (different from the current global provider, which is almost always Open-Meteo).
+  // Switching between non-global providers (OpenWeather, WeatherAPI, Yr.no, VisualCrossing)
+  // does NOT change the global data source, so avoid wasting quota.
+  if (newProvider.supportsGlobal) {
+    refreshGlobalWeather(true, samplePoints, summaryPoints);
+  } else {
+    // Global data unchanged — just update the provider panel and status
+    updateProviderPanel();
+    setStatus(
+      `Provider locale: ${newProvider.name}. Dati globali invariati (Open-Meteo).`
+    );
+  }
+
+  // Always refresh the selected point with the new local provider
   if (weatherState.selectedPoint) {
     refreshSelectedPointWeather(true);
   }
 });
+
+// Pre-populate from snapshot so globe shows data immediately even before first fetch
+{
+  const existingSnapshot = loadWeatherSnapshot();
+  if (existingSnapshot) {
+    applyCachedWeather(existingSnapshot);
+    updateMarkerMeshes();
+    updateHud();
+  }
+}
 
 // Initial setup calls
 updateSunDirection();
@@ -128,6 +156,15 @@ dom.toggleHeatmapButton?.addEventListener("click", () => {
     dom.toggleHeatmapButton.classList.add("active");
   } else {
     dom.toggleHeatmapButton.classList.remove("active");
+  }
+});
+dom.toggleLanguageButton?.addEventListener('click', () => {
+  weatherState.language = weatherState.language === 'it' ? 'en' : 'it';
+  localStorage.setItem('terracast:language', weatherState.language);
+  updateToggleButtons();
+  // If there's a selected point, re-fetch to get labels in the new language
+  if (weatherState.selectedPoint) {
+    refreshSelectedPointWeather(true);
   }
 });
 

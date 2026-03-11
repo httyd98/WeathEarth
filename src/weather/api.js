@@ -134,6 +134,12 @@ export async function fetchOpenMeteoGlobal(points) {
     }
   }
 
+  if (quotaExhausted) {
+    const quotaError = new Error("Open-Meteo quota esaurita (429 consecutivi su più batch)");
+    quotaError.status = 429;
+    throw quotaError;
+  }
+
   return {
     entries: result.flat(),
     failedBatches
@@ -198,7 +204,14 @@ export async function refreshGlobalWeather(forceStatus, samplePoints, summaryPoi
       setProviderQuota(activeProvider.id, quota);
     }
 
-    saveWeatherCache(weatherState.points);
+    if (updatedCount === 0 && failedBatches > 0) {
+      // All batches failed but no quota error was thrown — treat as network failure
+      throw new Error(`Tutti i ${failedBatches} batch Open-Meteo falliti (errori di rete)`);
+    }
+
+    if (updatedCount > 0) {
+      saveWeatherCache(weatherState.points);
+    }
     updateMarkerMeshes();
     updateHeatmap();
     updateHud();
@@ -333,7 +346,19 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
     console.error(`[${activeProvider.name}] fetchCurrent/fetchForecast failed:`, error);
 
     if (activeProvider.id !== PROVIDERS.openMeteo.id) {
-      const primaryMsg = error?.message ?? String(error);
+      const primaryErrorStatus = error?.status ?? 0;
+      let primaryErrorNote;
+      if (primaryErrorStatus === 401 || primaryErrorStatus === 403) {
+        primaryErrorNote = `Chiave API non valida o non autorizzata per ${activeProvider.name}. Verifica la chiave nel pannello Provider.`;
+      } else if (primaryErrorStatus === 429) {
+        primaryErrorNote = `Quota ${activeProvider.name} esaurita. Riprova più tardi.`;
+      } else if (primaryErrorStatus >= 500) {
+        primaryErrorNote = `Servizio ${activeProvider.name} temporaneamente non disponibile (errore ${primaryErrorStatus}).`;
+      } else if (primaryErrorStatus === 404) {
+        primaryErrorNote = `Dati non disponibili per questa località tramite ${activeProvider.name}.`;
+      } else {
+        primaryErrorNote = `Errore nel caricamento meteo locale tramite ${activeProvider.name}.`;
+      }
       try {
         const fallback = PROVIDERS.openMeteo;
         const [{ current, quota }, { forecast }] = await Promise.all([
@@ -357,7 +382,7 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
         weatherState.selectedPoint.forecast = forecast;
         weatherState.selectedPoint.providerName = `${fallback.name} (fallback)`;
         setProviderQuota(activeProvider.id, {
-          note: `${activeProvider.name} non disponibile (${primaryMsg}). Dati via Open-Meteo.`
+          note: `${primaryErrorNote} Dati via Open-Meteo.`
         });
         setProviderQuota(fallback.id, quota ?? { note: fallback.quotaNote });
         updateSelectionPanel();
@@ -366,39 +391,45 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
         return;
       } catch (fallbackError) {
         console.error("[Open-Meteo fallback] failed:", fallbackError);
-        const fallbackMsg = fallbackError?.message ?? String(fallbackError);
-        const isFallbackQuota =
-          fallbackError?.status === 429 || fallbackMsg.includes("429");
+        const fallbackErrorStatus = fallbackError?.status ?? 0;
         weatherState.selectedPoint.current = null;
         weatherState.selectedPoint.forecast = null;
         weatherState.selectedPoint.providerName = activeProvider.name;
         updateSelectionPanel();
         renderForecast([]);
-        if (isFallbackQuota) {
-          setStatus(
-            `${activeProvider.name} non disponibile e quota Open-Meteo esaurita. Riprova domani o dopo mezzanotte UTC.`
-          );
+        let fallbackMsg;
+        if (fallbackErrorStatus === 429) {
+          fallbackMsg = `Quota ${PROVIDERS.openMeteo.name} esaurita. Riprova più tardi.`;
+        } else if (fallbackErrorStatus >= 500) {
+          fallbackMsg = `Servizio ${PROVIDERS.openMeteo.name} temporaneamente non disponibile (errore ${fallbackErrorStatus}).`;
         } else {
-          setStatus(
-            `${activeProvider.name} non disponibile (${primaryMsg}) e Open-Meteo fallback fallito (${fallbackMsg}).`
-          );
+          fallbackMsg = `Errore nel caricamento meteo locale tramite ${PROVIDERS.openMeteo.name}.`;
         }
+        setStatus(`${primaryErrorNote} Fallback: ${fallbackMsg}`);
         return;
       }
     }
 
     // Active provider IS Open-Meteo — show specific error
-    const isQuota = error?.status === 429 || String(error?.message).includes("429");
     weatherState.selectedPoint.current = null;
     weatherState.selectedPoint.forecast = null;
     weatherState.selectedPoint.providerName = activeProvider.name;
     updateSelectionPanel();
     renderForecast([]);
-    if (isQuota) {
-      setStatus("Quota Open-Meteo esaurita. Dati locali non disponibili. Riprova domani o dopo mezzanotte UTC.");
+    const errorStatus = error?.status ?? 0;
+    let errorMsg;
+    if (errorStatus === 401 || errorStatus === 403) {
+      errorMsg = `Chiave API non valida o non autorizzata per ${activeProvider.name}. Verifica la chiave nel pannello Provider.`;
+    } else if (errorStatus === 429) {
+      errorMsg = `Quota ${activeProvider.name} esaurita. Riprova più tardi.`;
+    } else if (errorStatus >= 500) {
+      errorMsg = `Servizio ${activeProvider.name} temporaneamente non disponibile (errore ${errorStatus}).`;
+    } else if (errorStatus === 404) {
+      errorMsg = `Dati non disponibili per questa località tramite ${activeProvider.name}.`;
     } else {
-      setStatus(`Errore nel caricamento locale con ${activeProvider.name}: ${error?.message ?? error}`);
+      errorMsg = `Errore nel caricamento meteo locale tramite ${activeProvider.name}.`;
     }
+    setStatus(errorMsg);
   }
 }
 

@@ -20,6 +20,8 @@ export const dom = {
   providerSelect: document.querySelector("#provider-select"),
   providerApiKey: document.querySelector("#provider-api-key"),
   providerSaveButton: document.querySelector("#provider-save-button"),
+  providerKeyGroup: document.querySelector("#provider-key-group"),
+  providerKeyNote: document.querySelector("#provider-key-note"),
   providerCapability: document.querySelector("#provider-capability"),
   quotaLimit: document.querySelector("#quota-limit"),
   quotaUsed: document.querySelector("#quota-used"),
@@ -33,7 +35,8 @@ export const dom = {
   toggleCloudsButton: document.querySelector("#toggle-clouds-button"),
   toggleProviderBoxButton: document.querySelector("#toggle-provider-box-button"),
   snackbar: document.querySelector("#snackbar"),
-  toggleHeatmapButton: document.querySelector("#toggle-heatmap-button")
+  toggleHeatmapButton: document.querySelector("#toggle-heatmap-button"),
+  toggleLanguageButton: document.querySelector("#toggle-language-button")
 };
 
 // points and providerId are initialized in main.js after all modules are loaded
@@ -54,7 +57,8 @@ export const weatherState = {
   showClouds: true,
   showProviderDock: true,
   summaryStats: null,
-  lastDistanceForScale: null
+  lastDistanceForScale: null,
+  language: localStorage.getItem('terracast:language') ?? 'it'
 };
 
 export const interactionState = {

@@ -147,6 +147,15 @@
                 Heatmap temperatura
               </span>
             </button>
+            <button id="toggle-language-button" class="secondary-button" type="button">
+              <span class="button-content">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="8" cy="8" r="6.5"/>
+                  <path d="M8 1.5C8 1.5 5.5 4 5.5 8s2.5 6.5 2.5 6.5M8 1.5C8 1.5 10.5 4 10.5 8S8 14.5 8 14.5M1.5 8h13"/>
+                </svg>
+                Lingua: Italiano
+              </span>
+            </button>
       </section>
 
       <section id="provider-dock" class="provider-dock panel">
@@ -169,16 +178,19 @@
           <select id="provider-select">
             <!-- Options are populated dynamically from PROVIDERS in main.js -->
           </select>
-          <label class="label label-block" for="provider-api-key">Chiave API</label>
-          <input
-            id="provider-api-key"
-            type="password"
-            placeholder="Inserisci la chiave se richiesta"
-            autocomplete="off"
-          />
-          <div class="provider-actions">
-            <button id="provider-save-button" type="button">Salva chiave</button>
+          <div id="provider-key-group">
+            <label class="label label-block" for="provider-api-key">Chiave API</label>
+            <input
+              id="provider-api-key"
+              type="password"
+              placeholder="Inserisci la chiave se richiesta"
+              autocomplete="off"
+            />
+            <div class="provider-actions">
+              <button id="provider-save-button" type="button">Salva chiave</button>
+            </div>
           </div>
+          <p id="provider-key-note" class="provider-key-note"></p>
           <p id="provider-capability" class="provider-note">
             Open-Meteo gestisce sia layer globale sia dettaglio locale.
           </p>

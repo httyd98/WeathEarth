@@ -9,6 +9,38 @@ import {
   WEATHER_CODE_LABELS
 } from "./constants.js";
 import { formatForecastDate, capitalize } from "./utils.js";
+import { weatherState } from "./state.js";
+
+// Italian translations for Yr.no/Met.no symbol codes
+const YR_SYMBOL_IT = {
+  clearsky_day: "Sereno", clearsky_night: "Cielo sereno", clearsky_polartwilight: "Sereno",
+  fair_day: "Quasi sereno", fair_night: "Quasi sereno", fair_polartwilight: "Quasi sereno",
+  partlycloudy_day: "Parzialmente nuvoloso", partlycloudy_night: "Parzialmente nuvoloso", partlycloudy_polartwilight: "Parzialmente nuvoloso",
+  cloudy: "Nuvoloso",
+  fog: "Nebbia",
+  lightrain: "Pioggia leggera", rain: "Pioggia", heavyrain: "Pioggia intensa",
+  lightrainshowers_day: "Rovesci leggeri", lightrainshowers_night: "Rovesci leggeri", lightrainshowers_polartwilight: "Rovesci leggeri",
+  rainshowers_day: "Rovesci", rainshowers_night: "Rovesci", rainshowers_polartwilight: "Rovesci",
+  heavyrainshowers_day: "Rovesci intensi", heavyrainshowers_night: "Rovesci intensi", heavyrainshowers_polartwilight: "Rovesci intensi",
+  lightsleet: "Pioggia mista neve leggera", sleet: "Pioggia mista neve", heavysleet: "Pioggia mista neve intensa",
+  lightsleetshowers_day: "Rovesci misti leggeri", lightsleetshowers_night: "Rovesci misti leggeri", lightsleetshowers_polartwilight: "Rovesci misti leggeri",
+  sleetshowers_day: "Rovesci misti", sleetshowers_night: "Rovesci misti", sleetshowers_polartwilight: "Rovesci misti",
+  heavysleetshowers_day: "Rovesci misti intensi", heavysleetshowers_night: "Rovesci misti intensi", heavysleetshowers_polartwilight: "Rovesci misti intensi",
+  lightsnow: "Neve leggera", snow: "Neve", heavysnow: "Neve intensa",
+  lightsnowshowers_day: "Rovesci nevosi leggeri", lightsnowshowers_night: "Rovesci nevosi leggeri", lightsnowshowers_polartwilight: "Rovesci nevosi leggeri",
+  snowshowers_day: "Rovesci nevosi", snowshowers_night: "Rovesci nevosi", snowshowers_polartwilight: "Rovesci nevosi",
+  heavysnowshowers_day: "Rovesci nevosi intensi", heavysnowshowers_night: "Rovesci nevosi intensi", heavysnowshowers_polartwilight: "Rovesci nevosi intensi",
+  lightrainandthunder: "Pioggia e tuoni", rainandthunder: "Temporale con pioggia", heavyrainandthunder: "Temporale violento con pioggia",
+  lightsleetandthunder: "Pioggia mista neve e tuoni", sleetandthunder: "Temporale con pioggia mista neve",
+  lightsnowandthunder: "Neve e tuoni", snowandthunder: "Temporale con neve",
+  lightrainshowersandthunder_day: "Rovesci con tuoni", lightrainshowersandthunder_night: "Rovesci con tuoni", lightrainshowersandthunder_polartwilight: "Rovesci con tuoni",
+  rainshowersandthunder_day: "Temporale con rovesci", rainshowersandthunder_night: "Temporale con rovesci", rainshowersandthunder_polartwilight: "Temporale con rovesci",
+  heavyrainshowersandthunder_day: "Temporale violento", heavyrainshowersandthunder_night: "Temporale violento", heavyrainshowersandthunder_polartwilight: "Temporale violento",
+  lightsleetshowersandthunder_day: "Rovesci misti con tuoni", lightsleetshowersandthunder_night: "Rovesci misti con tuoni", lightsleetshowersandthunder_polartwilight: "Rovesci misti con tuoni",
+  sleetshowersandthunder_day: "Temporale con rovesci misti", sleetshowersandthunder_night: "Temporale con rovesci misti", sleetshowersandthunder_polartwilight: "Temporale con rovesci misti",
+  lightsnowshowersandthunder_day: "Rovesci nevosi con tuoni", lightsnowshowersandthunder_night: "Rovesci nevosi con tuoni", lightsnowshowersandthunder_polartwilight: "Rovesci nevosi con tuoni",
+  snowshowersandthunder_day: "Temporale con rovesci nevosi", snowshowersandthunder_night: "Temporale con rovesci nevosi", snowshowersandthunder_polartwilight: "Temporale con rovesci nevosi"
+};
 
 // fetchOpenMeteoGlobal is imported from weather/api.js — we need a lazy reference to break the circular dep
 // We use a function wrapper to allow late binding
@@ -22,6 +54,9 @@ export const PROVIDERS = {
     id: "openMeteo",
     name: "Open-Meteo",
     requiresKey: false,
+    keyRequired: false,
+    keyOptional: false,
+    keyNote: "Nessuna chiave necessaria. Completamente gratuito.",
     supportsGlobal: true,
     quotaNote: "Quota gratuita non esposta dal provider.",
     async fetchCurrent({ lat, lon }) {
@@ -81,6 +116,9 @@ export const PROVIDERS = {
     id: "openWeather",
     name: "OpenWeather",
     requiresKey: true,
+    keyRequired: true,
+    keyOptional: false,
+    keyNote: "Chiave obbligatoria. Registrati su openweathermap.org (piano gratuito disponibile).",
     supportsGlobal: false,
     quotaNote: "Quota non esposta dal provider o non leggibile dal browser.",
     async fetchCurrent({ lat, lon, apiKey }) {
@@ -88,7 +126,7 @@ export const PROVIDERS = {
       url.searchParams.set("lat", `${lat}`);
       url.searchParams.set("lon", `${lon}`);
       url.searchParams.set("units", "metric");
-      url.searchParams.set("lang", "it");
+      url.searchParams.set("lang", weatherState.language ?? "it");
       url.searchParams.set("appid", apiKey);
 
       const response = await fetch(url);
@@ -107,7 +145,7 @@ export const PROVIDERS = {
       url.searchParams.set("lat", `${lat}`);
       url.searchParams.set("lon", `${lon}`);
       url.searchParams.set("units", "metric");
-      url.searchParams.set("lang", "it");
+      url.searchParams.set("lang", weatherState.language ?? "it");
       url.searchParams.set("appid", apiKey);
 
       const response = await fetch(url);
@@ -126,13 +164,16 @@ export const PROVIDERS = {
     id: "weatherApi",
     name: "WeatherAPI",
     requiresKey: true,
+    keyRequired: true,
+    keyOptional: false,
+    keyNote: "Chiave obbligatoria. Registrati su weatherapi.com (piano gratuito disponibile).",
     supportsGlobal: false,
     quotaNote: "Quota non esposta dal provider o non leggibile dal browser.",
     async fetchCurrent({ lat, lon, apiKey }) {
       const url = new URL(WEATHER_API_CURRENT_ENDPOINT);
       url.searchParams.set("key", apiKey);
       url.searchParams.set("q", `${lat},${lon}`);
-      url.searchParams.set("lang", "it");
+      url.searchParams.set("lang", weatherState.language ?? "it");
       url.searchParams.set("aqi", "no");
 
       const response = await fetch(url);
@@ -150,7 +191,7 @@ export const PROVIDERS = {
       const url = new URL(WEATHER_API_FORECAST_ENDPOINT);
       url.searchParams.set("key", apiKey);
       url.searchParams.set("q", `${lat},${lon}`);
-      url.searchParams.set("lang", "it");
+      url.searchParams.set("lang", weatherState.language ?? "it");
       url.searchParams.set("days", "5");
       url.searchParams.set("aqi", "no");
       url.searchParams.set("alerts", "no");
@@ -171,6 +212,9 @@ export const PROVIDERS = {
     id: "yr",
     name: "Yr.no (Met.no)",
     requiresKey: false,
+    keyRequired: false,
+    keyOptional: false,
+    keyNote: "Nessuna chiave necessaria. Rispetta le linee guida d'uso di Met.no.",
     supportsGlobal: false,
     quotaNote: "Quota gratuita, nessuna chiave richiesta. Rispettare le linee guida d'uso di Met.no.",
     async fetchCurrent({ lat, lon }) {
@@ -206,10 +250,14 @@ export const PROVIDERS = {
     id: "visualCrossing",
     name: "Visual Crossing",
     requiresKey: true,
+    keyRequired: true,
+    keyOptional: false,
+    keyNote: "Chiave obbligatoria. Registrati su visualcrossing.com (1000 record/giorno gratuiti).",
     supportsGlobal: false,
     quotaNote: "Quota gratuita: 1000 record/giorno.",
     async fetchCurrent({ lat, lon, apiKey }) {
-      const url = `${VISUAL_CROSSING_ENDPOINT}/${lat},${lon}/today?unitGroup=metric&include=current&key=${apiKey}&contentType=json`;
+      const lang = weatherState.language ?? 'it';
+      const url = `${VISUAL_CROSSING_ENDPOINT}/${lat},${lon}/today?unitGroup=metric&include=current&lang=${lang}&key=${apiKey}&contentType=json`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Visual Crossing current request failed: ${response.status}`);
@@ -221,7 +269,8 @@ export const PROVIDERS = {
       };
     },
     async fetchForecast({ lat, lon, apiKey }) {
-      const url = `${VISUAL_CROSSING_ENDPOINT}/${lat},${lon}?unitGroup=metric&include=days&key=${apiKey}&contentType=json`;
+      const lang = weatherState.language ?? 'it';
+      const url = `${VISUAL_CROSSING_ENDPOINT}/${lat},${lon}?unitGroup=metric&include=days&lang=${lang}&key=${apiKey}&contentType=json`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Visual Crossing forecast request failed: ${response.status}`);
@@ -351,7 +400,9 @@ export function normalizeYrEntry(payload) {
     pressure: instant.air_pressure_at_sea_level ?? null,
     windSpeed: instant.wind_speed ?? null,
     weatherCode: null,
-    conditionLabel: symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    conditionLabel: weatherState.language === 'en'
+      ? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : (YR_SYMBOL_IT[symbol] ?? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())),
     isDay,
     units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "m/s" }
   };
@@ -371,7 +422,11 @@ export function normalizeYrForecast(payload) {
   return Array.from(daily.entries()).slice(0, 5).map(([date, { temps, symbol }]) => ({
     label: formatForecastDate(date),
     weatherCode: null,
-    conditionLabel: symbol ? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "–",
+    conditionLabel: symbol
+      ? (weatherState.language === 'en'
+          ? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          : (YR_SYMBOL_IT[symbol] ?? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())))
+      : "–",
     min: temps.length ? Math.min(...temps) : null,
     max: temps.length ? Math.max(...temps) : null,
     unit: "°C"

@@ -8,14 +8,25 @@ export const WEATHER_SNAPSHOT_KEY = `${STORAGE_PREFIX}:weather_snapshot_v1`;
 
 export function saveWeatherCache(points) {
   try {
+    const validPoints = points.filter((p) => p.current !== null && p.current !== undefined);
+    const validCount = validPoints.length;
+
+    // If 0 valid points, skip both writes to preserve any existing snapshot
+    if (validCount === 0) return;
+
     const payload = {
       ts: Date.now(),
-      data: points
-        .filter((p) => p.current !== null)
-        .map((p) => ({ lat: p.lat, lon: p.lon, current: p.current }))
+      data: validPoints.map((p) => ({ lat: p.lat, lon: p.lon, current: p.current }))
     };
-    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(payload));
-    localStorage.setItem(WEATHER_SNAPSHOT_KEY, JSON.stringify(payload)); // persistent snapshot, no TTL
+
+    if (validCount >= 50) {
+      // Meaningful data: save to both regular cache and snapshot
+      localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(payload));
+      localStorage.setItem(WEATHER_SNAPSHOT_KEY, JSON.stringify(payload)); // persistent snapshot, no TTL
+    } else {
+      // Partial data: save to regular cache only, do NOT overwrite snapshot
+      localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(payload));
+    }
   } catch {
     // localStorage might be full or unavailable — silently ignore
   }
