@@ -38,6 +38,7 @@ import {
   loadStoredProviderId,
   storeApiKey,
   getStoredApiKey,
+  loadWeatherCache,
   loadWeatherSnapshot,
   applyCachedWeather
 } from "./weather/cache.js";
@@ -82,35 +83,32 @@ weatherState.globalDataProvider = PROVIDERS.openMeteo.name;
 // Initialize markers (now that weatherState.points is populated)
 initMarkers(weatherState.points.length);
 
-// Wire up provider change callback (needs samplePoints)
+// Wire up provider change callback
 setOnProviderChange(() => {
   const newProvider = getActiveProvider();
 
-  // Only refresh global data if the new provider is itself a global-capable one
-  // (different from the current global provider, which is almost always Open-Meteo).
-  // Switching between non-global providers (OpenWeather, WeatherAPI, Yr.no, VisualCrossing)
-  // does NOT change the global data source, so avoid wasting quota.
-  if (newProvider.supportsGlobal) {
-    refreshGlobalWeather(true, samplePoints, summaryPoints);
-  } else {
-    // Global data unchanged — just update the provider panel and status
-    updateProviderPanel();
-    setStatus(
-      `Provider locale: ${newProvider.name}. Dati globali invariati (Open-Meteo).`
-    );
-  }
+  // Changing provider never triggers a global data re-fetch.
+  // Global data (Open-Meteo batch) is loaded only at page load and by the timer.
+  // Provider choice only affects single-point detail queries.
+  updateProviderPanel();
+  setStatus(
+    newProvider.supportsGlobal
+      ? `Provider: ${newProvider.name} (layer globale + dettaglio locale).`
+      : `Provider locale: ${newProvider.name}. Dati globali via Open-Meteo.`
+  );
 
-  // Always refresh the selected point with the new local provider
+  // Refresh the selected point with the new local provider
   if (weatherState.selectedPoint) {
     refreshSelectedPointWeather(true);
   }
 });
 
-// Pre-populate from snapshot so globe shows data immediately even before first fetch
+// Pre-populate from cache (or snapshot) so globe shows data immediately before first fetch.
+// refreshGlobalWeather will then fetch live data and overwrite only on success.
 {
-  const existingSnapshot = loadWeatherSnapshot();
-  if (existingSnapshot) {
-    applyCachedWeather(existingSnapshot);
+  const cached = loadWeatherCache() ?? loadWeatherSnapshot();
+  if (cached) {
+    applyCachedWeather(cached);
     updateMarkerMeshes();
     updateHud();
   }
@@ -281,13 +279,12 @@ function handleProviderSave() {
 
 function handleToggleMarkers() {
   weatherState.showMarkers = !weatherState.showMarkers;
+  // Markers only display data already in memory (cache, snapshot, or live).
+  // Data loading is triggered exclusively by page load and the auto-refresh timer.
   updateMarkerVisibility();
+  updateMarkerMeshes();
   updateHud();
   updateToggleButtons();
-
-  if (weatherState.showMarkers) {
-    refreshGlobalWeather(false, samplePoints, summaryPoints);
-  }
 }
 
 function handleToggleTerminator() {

@@ -13,11 +13,15 @@ export const PIRATE_WEATHER_ENDPOINT = "https://api.pirateweather.net/forecast";
 // Batches per refresh: ceil(1638/150) ≈ 11 batches
 // 24 refreshes/day (1/h) × 11 batches = 264 calls/day (2.6% of quota)
 // Fewer points near poles = more uniform spherical coverage
+//
+// Open-Meteo enforces per-minute rate limits beyond the daily quota.
+// BATCH_DELAY_MS is the initial gap; fetchOpenMeteoGlobal doubles it
+// adaptively when 429s are detected.
 export const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour — 24 refreshes/day
 export const REQUEST_BATCH_SIZE = 150;
-export const BATCH_DELAY_MS = 600;
+export const BATCH_DELAY_MS = 1500;
 export const MAX_BATCH_RETRIES = 3;
-export const RETRY_BASE_DELAY_MS = 2000;
+export const RETRY_BASE_DELAY_MS = 3000;
 export const GLOBE_RADIUS = 4.2;
 export const MARKER_ALTITUDE = 0.16;
 export const BASE_MARKER_RADIUS = 0.034;

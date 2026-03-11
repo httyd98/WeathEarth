@@ -68,9 +68,13 @@ export async function fetchOpenMeteoGlobal(points) {
   let quotaExhausted = false;
   let consecutiveQuotaFails = 0;
 
+  // Adaptive delay: starts at BATCH_DELAY_MS, doubles each time a 429 is seen
+  let currentDelay = BATCH_DELAY_MS;
+
   for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
     const batch = batches[batchIndex];
     let success = false;
+    let saw429 = false;
 
     for (let attempt = 0; attempt <= MAX_BATCH_RETRIES; attempt++) {
       try {
@@ -80,10 +84,10 @@ export async function fetchOpenMeteoGlobal(points) {
         break;
       } catch (error) {
         const isRateLimited = error.status === 429;
+        if (isRateLimited) saw429 = true;
         const hasRetriesLeft = attempt < MAX_BATCH_RETRIES;
 
         if (hasRetriesLeft) {
-          // Retry ALL errors: 429 with backoff, network errors with short delay
           const retryDelay = isRateLimited
             ? RETRY_BASE_DELAY_MS * (attempt + 1)
             : 700;
@@ -95,7 +99,7 @@ export async function fetchOpenMeteoGlobal(points) {
           await sleep(retryDelay);
         } else {
           if (isRateLimited) consecutiveQuotaFails++;
-          else consecutiveQuotaFails = 0; // reset on non-429 failure
+          else consecutiveQuotaFails = 0;
           console.error(
             `Open-Meteo batch ${batchIndex + 1}/${batches.length} failed permanently:`,
             error
@@ -103,6 +107,13 @@ export async function fetchOpenMeteoGlobal(points) {
           break;
         }
       }
+    }
+
+    // Adaptive backoff: if we saw any 429 on this batch (even if retry succeeded),
+    // double the inter-batch delay to avoid hitting the rate limit again.
+    if (saw429) {
+      currentDelay = Math.min(currentDelay * 2, 10000);
+      console.warn(`Adaptive delay increased to ${currentDelay}ms after 429 on batch ${batchIndex + 1}`);
     }
 
     if (!success) {
@@ -113,7 +124,6 @@ export async function fetchOpenMeteoGlobal(points) {
     }
 
     // Only bail out after 2+ consecutive 429-exhausted batches
-    // (single 429 may be transient rate limiting, not quota exhaustion)
     if (consecutiveQuotaFails >= 2) {
       quotaExhausted = true;
       const remaining = batches.slice(batchIndex + 1);
@@ -131,20 +141,28 @@ export async function fetchOpenMeteoGlobal(points) {
     }
 
     if (batchIndex < batches.length - 1) {
-      await sleep(BATCH_DELAY_MS);
+      await sleep(currentDelay);
     }
   }
 
-  if (quotaExhausted) {
+  // Only throw if we have ZERO usable data.  When some batches succeeded,
+  // return partial results so the caller can display what we have.
+  const entries = result.flat();
+  const hasAnyData = entries.some(Boolean);
+
+  if (quotaExhausted && !hasAnyData) {
     const quotaError = new Error("Open-Meteo quota esaurita (429 consecutivi su più batch)");
     quotaError.status = 429;
     throw quotaError;
   }
 
-  return {
-    entries: result.flat(),
-    failedBatches
-  };
+  if (quotaExhausted) {
+    console.warn(
+      `Open-Meteo quota raggiunta ma ${entries.filter(Boolean).length}/${entries.length} punti recuperati. Restituzione dati parziali.`
+    );
+  }
+
+  return { entries, failedBatches };
 }
 
 export async function fetchGlobalSummary(summaryPoints) {
@@ -161,9 +179,54 @@ export async function fetchGlobalSummary(summaryPoints) {
   };
 }
 
-export async function refreshGlobalWeather(forceStatus, samplePoints, summaryPoints) {
-  setStatus(weatherState.showMarkers ? "Aggiornamento dati globali..." : "Aggiornamento riepilogo globale...");
+let _globalRefreshInFlight = false;
 
+export async function refreshGlobalWeather(forceStatus, samplePoints, summaryPoints) {
+  // Prevent concurrent refreshes — HMR reloads can trigger duplicates
+  if (_globalRefreshInFlight) {
+    console.warn("refreshGlobalWeather: already in flight, skipping.");
+    return;
+  }
+  _globalRefreshInFlight = true;
+
+  try {
+    await _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints);
+  } finally {
+    _globalRefreshInFlight = false;
+  }
+}
+
+async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints) {
+  // ── Phase 1: Stale-while-revalidate ─────────────────────────────────
+  // Show cached/local data immediately so the UI is never empty while
+  // the live fetch runs.  Only overwrite if the live fetch succeeds.
+  const hasDataInMemory = weatherState.points.some((p) => p.current !== null);
+
+  if (!hasDataInMemory) {
+    const cache = loadWeatherCache();
+    const snapshot = !cache ? loadWeatherSnapshot() : null;
+    const cachedPayload = cache ?? snapshot;
+
+    if (cachedPayload) {
+      applyCachedWeather(cachedPayload);
+      updateMarkerMeshes();
+      updateHeatmap();
+      updateCloudLayer();
+      updateHud();
+      const source = cache ? "cache" : "snapshot";
+      setStatus(`Dati locali (${source}) caricati. Aggiornamento live in corso…`);
+    } else {
+      setStatus(
+        weatherState.showMarkers
+          ? "Primo avvio — caricamento dati globali…"
+          : "Primo avvio — caricamento riepilogo…"
+      );
+    }
+  } else {
+    setStatus("Aggiornamento dati live in corso…");
+  }
+
+  // ── Phase 2: Fetch live data ────────────────────────────────────────
   try {
     if (!weatherState.showMarkers) {
       const summary = await fetchGlobalSummary(summaryPoints);
@@ -171,7 +234,7 @@ export async function refreshGlobalWeather(forceStatus, samplePoints, summaryPoi
       weatherState.lastUpdatedAt = new Date();
       weatherState.nextRefreshAt = new Date(Date.now() + REFRESH_INTERVAL_MS);
       updateHud();
-      setStatus("Riepilogo globale aggiornato senza ricaricare i punti meteo.");
+      setStatus("Riepilogo globale aggiornato.");
       return;
     }
 
@@ -182,16 +245,14 @@ export async function refreshGlobalWeather(forceStatus, samplePoints, summaryPoi
     const apiKey = getStoredApiKey(activeProvider.id);
 
     if (!activeProvider.supportsGlobal && activeProvider.id !== PROVIDERS.openMeteo.id) {
-      setStatus(`Layer globale: Open-Meteo (${activeProvider.name} non supporta i dati globali). Caricamento...`);
+      setStatus(`Dati globali via Open-Meteo (${activeProvider.name} non supporta batch). Caricamento live…`);
     }
 
     const { entries, quota, failedBatches = 0 } = await globalProvider.fetchGlobal(samplePoints, apiKey);
 
     let updatedCount = 0;
     entries.forEach((entry, index) => {
-      if (!entry) {
-        return;
-      }
+      if (!entry) return;
       weatherState.points[index].current = entry;
       updatedCount += 1;
     });
@@ -206,10 +267,10 @@ export async function refreshGlobalWeather(forceStatus, samplePoints, summaryPoi
     }
 
     if (updatedCount === 0 && failedBatches > 0) {
-      // All batches failed but no quota error was thrown — treat as network failure
       throw new Error(`Tutti i ${failedBatches} batch Open-Meteo falliti (errori di rete)`);
     }
 
+    // ── Phase 3: Live data succeeded — save + update visualizations ───
     if (updatedCount > 0) {
       saveWeatherCache(weatherState.points);
     }
@@ -219,54 +280,57 @@ export async function refreshGlobalWeather(forceStatus, samplePoints, summaryPoi
     updateHud();
 
     if (forceStatus) {
-      setStatus(`Feed globale aggiornato. Layer: ${globalProvider.name}.`);
+      setStatus(`Feed globale aggiornato (${updatedCount} punti live via ${globalProvider.name}).`);
     } else if (failedBatches > 0) {
       setStatus(
-        `Aggiornamento globale parziale: ${updatedCount}/${samplePoints.length} punti caricati con ${globalProvider.name}.`
+        `Aggiornamento parziale: ${updatedCount}/${samplePoints.length} punti via ${globalProvider.name}.`
       );
     } else if (globalProvider.id !== activeProvider.id) {
       setStatus(
-        `Layer globale via ${globalProvider.name}. Dettaglio locale via ${activeProvider.name}.`
+        `Dati globali live via ${globalProvider.name}. Dettaglio locale via ${activeProvider.name}.`
       );
     } else {
-      setStatus(`Feed globale sincronizzato tramite ${globalProvider.name}.`);
+      setStatus(`Feed globale sincronizzato (${updatedCount} punti via ${globalProvider.name}).`);
     }
   } catch (error) {
-    console.error(error);
+    console.error("refreshGlobalWeather live fetch failed:", error);
     const isQuota = error?.status === 429 || String(error?.message).includes("429");
-    const cache = loadWeatherCache();
-    if (cache) {
-      applyCachedWeather(cache);
-      updateMarkerMeshes();
-      updateHud();
+
+    // If we already have data in memory (from Phase 1 or a previous fetch),
+    // keep it and just warn — no need to reload from cache.
+    const stillHasData = weatherState.points.some((p) => p.current !== null);
+
+    if (stillHasData) {
       const reason = isQuota
-        ? "Quota Open-Meteo esaurita. Visualizzo gli ultimi dati dalla cache."
-        : "Errore di rete. Visualizzo gli ultimi dati dalla cache.";
+        ? "Quota Open-Meteo esaurita. Dati precedenti mantenuti."
+        : "Errore di rete. Dati precedenti mantenuti.";
       setStatus(reason);
       if (forceStatus) showSnackbar(reason, "warn");
     } else {
-      const snapshot = loadWeatherSnapshot();
-      if (snapshot) {
-        applyCachedWeather(snapshot);
+      // Nothing in memory — last-resort cache/snapshot attempt
+      const cache = loadWeatherCache();
+      const snapshot = !cache ? loadWeatherSnapshot() : null;
+      const fallbackPayload = cache ?? snapshot;
+
+      if (fallbackPayload) {
+        applyCachedWeather(fallbackPayload);
         updateMarkerMeshes();
+        updateHeatmap();
+        updateCloudLayer();
         updateHud();
-        const snapshotDate = new Date(snapshot.ts).toLocaleString("it-IT", {
-          day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
-        });
         const reason = isQuota
-          ? `Quota esaurita. Dati dal ${snapshotDate} (snapshot).`
-          : `Errore di rete. Dati dal ${snapshotDate} (snapshot).`;
+          ? "Quota Open-Meteo esaurita. Dati dalla cache."
+          : "Errore di rete. Dati dalla cache.";
         setStatus(reason);
         if (forceStatus) showSnackbar(reason, "warn");
       } else {
         const reason = isQuota
-          ? "Quota Open-Meteo esaurita. Riprova domani o dopo mezzanotte UTC."
-          : "Errore di rete nel refresh globale. Nessun dato disponibile.";
+          ? "Quota Open-Meteo esaurita. Nessun dato disponibile. Riprova dopo mezzanotte UTC."
+          : "Errore di rete. Nessun dato disponibile.";
         setStatus(reason);
         if (forceStatus) showSnackbar(reason, "error");
       }
     }
-  } finally {
   }
 }
 
