@@ -9,7 +9,7 @@
     <title>WheathEarth</title>
     <meta
       name="description"
-      content="Globo 3D con meteo globale in tempo quasi reale, ciclo giorno/notte e controlli di zoom."
+      content="Globo 3D con meteo globale, selezione puntuale, geolocalizzazione e provider multipli."
     />
     <script type="module" src="/src/main.js"></script>
   </head>
@@ -17,47 +17,18 @@
     <div class="app-shell">
       <div id="scene-root" aria-label="Globo 3D con dati meteo globali"></div>
 
-      <div class="scene-controls" aria-label="Controlli scena">
-        <button
-          id="toggle-markers-button"
-          class="toggle-button"
-          type="button"
-        >
-          Punti meteo: ON
-        </button>
-        <button
-          id="toggle-daynight-button"
-          class="toggle-button"
-          type="button"
-        >
-          Vista giorno/notte: ON
-        </button>
-      </div>
-
-      <div class="search-dock">
-        <form id="search-form" class="search-form" autocomplete="off">
-          <input
-            id="search-input"
-            type="text"
-            placeholder="Cerca città, indirizzo o lat,lon (es: 41.9028, 12.4964)"
-            aria-label="Cerca località o coordinate"
-          />
-          <button id="search-button" type="submit">Vai</button>
-        </form>
-      </div>
-
       <aside class="hud">
         <div class="panel brand-panel">
           <p class="eyebrow">Global Weather Observatory</p>
           <h1>WheathEarth</h1>
           <p class="lede">
-            Condizioni meteo attuali campionate su tutto il pianeta, con ciclo
-            giorno/notte sincronizzato all'ora reale.
+            Condizioni meteo globali in tempo quasi reale, con selezione puntuale
+            sul globo, ricerca località e geolocalizzazione browser.
           </p>
           <div class="chips">
-            <span class="chip">Zoom a rotella</span>
             <span class="chip">Drag per orbitare</span>
-            <span class="chip">Click su qualsiasi area</span>
+            <span class="chip">Click per selezionare</span>
+            <span class="chip">Rotella per zoom</span>
           </div>
         </div>
 
@@ -81,7 +52,7 @@
             </div>
           </div>
           <div class="actions">
-            <button id="refresh-button" type="button">Aggiorna ora</button>
+            <button id="refresh-button" type="button">Aggiorna mappa</button>
             <p id="status-line" class="status-line">Connessione ai feed pubblici...</p>
           </div>
         </div>
@@ -101,16 +72,8 @@
               <dd id="selection-temperature">-</dd>
             </div>
             <div>
-              <dt>Percepita</dt>
-              <dd id="selection-feels-like">-</dd>
-            </div>
-            <div>
               <dt>Vento</dt>
               <dd id="selection-wind">-</dd>
-            </div>
-            <div>
-              <dt>Raffiche</dt>
-              <dd id="selection-gusts">-</dd>
             </div>
             <div>
               <dt>Umidità</dt>
@@ -121,14 +84,6 @@
               <dd id="selection-pressure">-</dd>
             </div>
             <div>
-              <dt>Nuvolosità</dt>
-              <dd id="selection-cloud-cover">-</dd>
-            </div>
-            <div>
-              <dt>Precipitazioni</dt>
-              <dd id="selection-precipitation">-</dd>
-            </div>
-            <div>
               <dt>Coordinate</dt>
               <dd id="selection-coordinates">-</dd>
             </div>
@@ -137,15 +92,19 @@
               <dd id="selection-daylight">-</dd>
             </div>
             <div>
-              <dt>Fuso orario</dt>
-              <dd id="selection-timezone">-</dd>
+              <dt>Provider</dt>
+              <dd id="selection-provider">-</dd>
             </div>
           </dl>
-          <div class="forecast-block">
-            <p class="eyebrow">Previsioni prossimi 5 giorni</p>
-            <ul id="forecast-list" class="forecast-list">
-              <li>In attesa dati previsionali...</li>
-            </ul>
+        </div>
+
+        <div class="panel forecast-panel">
+          <div class="section-heading">
+            <p class="eyebrow">Previsioni</p>
+            <p class="section-title">Località selezionata</p>
+          </div>
+          <div id="forecast-list" class="forecast-list">
+            <p class="provider-note">Seleziona una località per vedere le previsioni.</p>
           </div>
         </div>
 
@@ -162,11 +121,110 @@
             <span>40°C</span>
           </div>
           <p class="footnote">
-            Fonte meteo pubblica: Open-Meteo. Le richieste vengono eseguite in
-            batch per mantenere refresh molto rapidi a scala globale.
+            I marker globali vengono campionati su tutto il pianeta. Il punto
+            selezionato usa il provider locale attivo e si aggiorna solo con
+            click, non con il drag.
           </p>
         </div>
       </aside>
+
+      <section class="control-dock panel">
+        <button id="toggle-markers-button" class="secondary-button" type="button">
+          Nascondi punti meteo
+        </button>
+        <button id="toggle-terminator-button" class="secondary-button" type="button">
+          Nascondi giorno/notte
+        </button>
+        <button id="toggle-clouds-button" class="secondary-button" type="button">
+          Nascondi nuvole
+        </button>
+      </section>
+
+      <section id="provider-dock" class="provider-dock panel">
+        <div class="section-heading">
+          <p class="eyebrow">Provider</p>
+          <div class="provider-heading-actions">
+            <p class="section-title">Sorgente meteo attiva</p>
+            <button
+              id="toggle-provider-box-button"
+              class="collapse-button"
+              type="button"
+              aria-label="Comprimi sorgente meteo"
+            >
+              <span aria-hidden="true">▾</span>
+            </button>
+          </div>
+        </div>
+        <div id="provider-dock-content">
+          <label class="label label-block" for="provider-select">Provider</label>
+          <select id="provider-select">
+            <option value="openMeteo">Open-Meteo</option>
+            <option value="openWeather">OpenWeather</option>
+            <option value="weatherApi">WeatherAPI</option>
+          </select>
+          <label class="label label-block" for="provider-api-key">Chiave API</label>
+          <input
+            id="provider-api-key"
+            type="password"
+            placeholder="Inserisci la chiave se richiesta"
+            autocomplete="off"
+          />
+          <div class="provider-actions">
+            <button id="provider-save-button" type="button">Salva chiave</button>
+          </div>
+          <p id="provider-capability" class="provider-note">
+            Open-Meteo gestisce sia layer globale sia dettaglio locale.
+          </p>
+          <dl class="quota-grid">
+            <div>
+              <dt>Quota totale</dt>
+              <dd id="quota-limit">-</dd>
+            </div>
+            <div>
+              <dt>Utilizzate</dt>
+              <dd id="quota-used">-</dd>
+            </div>
+            <div>
+              <dt>Rimanenti</dt>
+              <dd id="quota-remaining">-</dd>
+            </div>
+          </dl>
+          <p id="quota-note" class="provider-note">
+            La quota viene mostrata solo se il provider la espone via API o header.
+          </p>
+        </div>
+      </section>
+
+      <section class="search-dock panel">
+        <div class="section-heading">
+          <p class="eyebrow">Ricerca</p>
+          <p class="section-title">Località o posizione attuale</p>
+        </div>
+        <form id="location-search-form" class="search-form">
+          <div class="search-input-wrap">
+            <button
+              id="locate-me-button"
+              class="location-button"
+              type="button"
+              aria-label="Usa posizione attuale"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.2a2.8 2.8 0 1 1 0-5.6a2.8 2.8 0 0 1 0 5.6Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+            <input
+              id="location-search"
+              type="search"
+              placeholder="Cerca una città o una località"
+              autocomplete="off"
+            />
+          </div>
+          <button id="location-search-button" type="submit">Cerca</button>
+        </form>
+      </section>
     </div>
   </body>
 </html>
