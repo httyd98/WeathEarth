@@ -291,11 +291,11 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.45;
+renderer.toneMappingExposure = 1.6;
 dom.sceneRoot.append(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x02040b, 0.012);
+scene.fog = new THREE.FogExp2(0x02040b, 0.009);
 
 const camera = new THREE.PerspectiveCamera(
   42,
@@ -335,10 +335,10 @@ controls.target.copy(globeGroup.position);
 
 const earthMaterial = new THREE.MeshStandardMaterial({
   color: 0xffffff,
-  roughness: 0.96,
+  roughness: 0.78,
   metalness: 0.02,
-  emissive: new THREE.Color("#06111f"),
-  emissiveIntensity: 0.02,
+  emissive: new THREE.Color("#0a1a30"),
+  emissiveIntensity: 0.08,
   normalScale: new THREE.Vector2(1.05, 1.05)
 });
 
@@ -350,21 +350,21 @@ earth.renderOrder = 1;
 globeGroup.add(earth);
 
 const nightLights = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.004, 128, 128),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.004, 64, 64),
   createNightLightsMaterial()
 );
 nightLights.renderOrder = 2;
 globeGroup.add(nightLights);
 
 const terminatorOverlay = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.008, 128, 128),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.008, 64, 64),
   createTerminatorMaterial()
 );
 terminatorOverlay.renderOrder = 3;
 globeGroup.add(terminatorOverlay);
 
 const atmosphere = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.04, 128, 128),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.04, 64, 64),
   new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -398,11 +398,11 @@ const atmosphere = new THREE.Mesh(
 globeGroup.add(atmosphere);
 
 const clouds = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.018, 128, 128),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.018, 80, 80),
   new THREE.MeshStandardMaterial({
     color: 0xffffff,
     transparent: true,
-    opacity: 0.14,
+    opacity: 0.22,
     depthWrite: false,
     roughness: 1,
     metalness: 0
@@ -713,7 +713,7 @@ function createTerminatorMaterial() {
         float night = 1.0 - smoothstep(-0.16, 0.08, sun);
         float edge = 1.0 - smoothstep(0.0, 0.08, abs(sun));
         vec3 color = vec3(0.01, 0.03, 0.08) * night + vec3(0.18, 0.32, 0.46) * edge * 0.08;
-        float alpha = night * 0.28 + edge * 0.03;
+        float alpha = night * 0.38 + edge * 0.04;
         gl_FragColor = vec4(color, alpha);
       }
     `
@@ -750,7 +750,7 @@ function createNightLightsMaterial() {
         float sun = dot(normalize(vNormal), normalize(uSunDirection));
         float night = 1.0 - smoothstep(-0.12, 0.04, sun);
         vec3 lights = texture2D(uNightTexture, vUv).rgb;
-        gl_FragColor = vec4(lights * 0.95, night * 0.34);
+        gl_FragColor = vec4(lights * 0.95, night * 0.48);
       }
     `
   });
@@ -892,11 +892,11 @@ function updateSunDirection() {
 
 function applyLightingMode() {
   if (weatherState.showTerminator) {
-    ambientLight.intensity = 0.22;
-    hemisphereLight.intensity = 0.14;
-    sunlight.intensity = 2.85;
-    fillLight.intensity = 0.08;
-    earthMaterial.emissiveIntensity = 0.01;
+    ambientLight.intensity = 0.38;
+    hemisphereLight.intensity = 0.28;
+    sunlight.intensity = 2.65;
+    fillLight.intensity = 0.15;
+    earthMaterial.emissiveIntensity = 0.08;
     terminatorOverlay.visible = true;
     nightLights.visible = true;
   } else {
@@ -1598,15 +1598,29 @@ async function loadEarthTextures() {
       textureLoader.loadAsync(EARTH_SPECULAR_TEXTURE_URL)
     ]);
 
-    [dayTexture, nightTexture, cloudsTexture, specularTexture].forEach((texture) => {
+    [dayTexture, nightTexture, cloudsTexture].forEach((texture) => {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
     });
+    specularTexture.colorSpace = THREE.LinearSRGBColorSpace;
+    specularTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
     normalTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
     earthMaterial.map = dayTexture;
     earthMaterial.normalMap = normalTexture;
-    earthMaterial.specularMap = specularTexture;
+    earthMaterial.roughnessMap = specularTexture;
+    earthMaterial.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <roughnessmap_fragment>',
+        `
+        float roughnessFactor = roughness;
+        #ifdef USE_ROUGHNESSMAP
+          vec4 texelRoughness = texture2D( roughnessMap, vRoughnessMapUv );
+          roughnessFactor *= 1.0 - texelRoughness.g;
+        #endif
+        `
+      );
+    };
     earthMaterial.needsUpdate = true;
 
     clouds.material.map = cloudsTexture;

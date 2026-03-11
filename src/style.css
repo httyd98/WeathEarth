@@ -109,7 +109,7 @@ select {
   position: absolute;
   top: 22px;
   right: 22px;
-  width: 260px;
+  width: 280px;
   display: grid;
   gap: 10px;
   z-index: 3;
@@ -333,15 +333,17 @@ button {
 }
 
 .button-content {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
 }
 
 .button-content svg {
   width: 16px;
   height: 16px;
   display: block;
+  flex-shrink: 0;
 }
 
 button:hover {
@@ -365,6 +367,7 @@ button:disabled {
   background: rgba(15, 31, 58, 0.84);
   border: 1px solid rgba(151, 192, 255, 0.16);
   box-shadow: none;
+  text-align: left;
 }
 
 .status-line,
