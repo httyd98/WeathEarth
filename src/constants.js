@@ -6,6 +6,7 @@ export const WEATHER_API_CURRENT_ENDPOINT = "https://api.weatherapi.com/v1/curre
 export const WEATHER_API_FORECAST_ENDPOINT = "https://api.weatherapi.com/v1/forecast.json";
 export const YR_FORECAST_ENDPOINT = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
 export const VISUAL_CROSSING_ENDPOINT = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline";
+export const PIRATE_WEATHER_ENDPOINT = "https://api.pirateweather.net/forecast";
 
 // Quota analysis (Open-Meteo free tier ~10,000 calls/day):
 // Lat-proportional grid: ~1638 points (72 max at equator, ~13 at ±80°)

@@ -36,7 +36,9 @@ export const dom = {
   toggleProviderBoxButton: document.querySelector("#toggle-provider-box-button"),
   snackbar: document.querySelector("#snackbar"),
   toggleHeatmapButton: document.querySelector("#toggle-heatmap-button"),
-  toggleLanguageButton: document.querySelector("#toggle-language-button")
+  toggleLanguageButton: document.querySelector("#toggle-language-button"),
+  toggleCloudCoverButton: document.querySelector("#toggle-cloud-cover-button"),
+  selectionCloudCover: document.querySelector("#selection-cloud-cover")
 };
 
 // points and providerId are initialized in main.js after all modules are loaded
@@ -56,6 +58,7 @@ export const weatherState = {
   showTerminator: true,
   showClouds: true,
   showProviderDock: true,
+  showCloudCover: false,
   summaryStats: null,
   lastDistanceForScale: null,
   language: localStorage.getItem('terracast:language') ?? 'it'

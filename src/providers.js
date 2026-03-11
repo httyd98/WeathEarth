@@ -6,6 +6,7 @@ import {
   WEATHER_API_FORECAST_ENDPOINT,
   YR_FORECAST_ENDPOINT,
   VISUAL_CROSSING_ENDPOINT,
+  PIRATE_WEATHER_ENDPOINT,
   WEATHER_CODE_LABELS
 } from "./constants.js";
 import { formatForecastDate, capitalize } from "./utils.js";
@@ -42,6 +43,23 @@ const YR_SYMBOL_IT = {
   snowshowersandthunder_day: "Temporale con rovesci nevosi", snowshowersandthunder_night: "Temporale con rovesci nevosi", snowshowersandthunder_polartwilight: "Temporale con rovesci nevosi"
 };
 
+// Italian translations for Pirate Weather / DarkSky-compatible icon codes
+const PIRATE_WEATHER_IT = {
+  'clear-day': 'Sereno',
+  'clear-night': 'Cielo sereno',
+  'partly-cloudy-day': 'Parzialmente nuvoloso',
+  'partly-cloudy-night': 'Parzialmente nuvoloso',
+  'cloudy': 'Nuvoloso',
+  'fog': 'Nebbia',
+  'rain': 'Pioggia',
+  'sleet': 'Pioggia mista neve',
+  'snow': 'Neve',
+  'wind': 'Vento forte',
+  'hail': 'Grandine',
+  'thunderstorm': 'Temporale',
+  'tornado': 'Tornado'
+};
+
 // fetchOpenMeteoGlobal is imported from weather/api.js — we need a lazy reference to break the circular dep
 // We use a function wrapper to allow late binding
 let _fetchOpenMeteoGlobal = null;
@@ -65,7 +83,7 @@ export const PROVIDERS = {
       url.searchParams.set("longitude", `${lon}`);
       url.searchParams.set(
         "current",
-        "temperature_2m,relative_humidity_2m,pressure_msl,weather_code,wind_speed_10m,is_day"
+        "temperature_2m,relative_humidity_2m,pressure_msl,weather_code,wind_speed_10m,is_day,cloud_cover"
       );
       url.searchParams.set("timezone", "GMT");
 
@@ -281,6 +299,46 @@ export const PROVIDERS = {
         quota: parseQuotaFromHeaders(response.headers) ?? { note: this.quotaNote }
       };
     }
+  },
+  pirateWeather: {
+    id: "pirateWeather",
+    name: "Pirate Weather",
+    requiresKey: true,
+    keyRequired: true,
+    keyOptional: false,
+    keyNote: "Chiave obbligatoria. Gratuita su pirateweather.net (5000 richieste/giorno).",
+    supportsGlobal: false,
+    quotaNote: "Quota gratuita: 5000 richieste/giorno.",
+    async fetchCurrent({ lat, lon, apiKey }) {
+      const lang = weatherState.language ?? 'it';
+      const url = `${PIRATE_WEATHER_ENDPOINT}/${apiKey}/${lat},${lon}?units=si&lang=${lang}&exclude=minutely,hourly,alerts`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const error = new Error(`Pirate Weather current request failed: ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      const payload = await response.json();
+      return {
+        current: normalizePirateWeatherEntry(payload),
+        quota: parseQuotaFromHeaders(response.headers) ?? { note: this.quotaNote }
+      };
+    },
+    async fetchForecast({ lat, lon, apiKey }) {
+      const lang = weatherState.language ?? 'it';
+      const url = `${PIRATE_WEATHER_ENDPOINT}/${apiKey}/${lat},${lon}?units=si&lang=${lang}&exclude=minutely,hourly,alerts`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const error = new Error(`Pirate Weather forecast request failed: ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      const payload = await response.json();
+      return {
+        forecast: normalizePirateWeatherForecast(payload),
+        quota: parseQuotaFromHeaders(response.headers) ?? { note: this.quotaNote }
+      };
+    }
   }
 };
 
@@ -292,6 +350,7 @@ export function normalizeOpenMeteoEntry(entry) {
     weatherCode: entry.current.weather_code,
     conditionLabel: WEATHER_CODE_LABELS[entry.current.weather_code] ?? "Condizione non classificata",
     windSpeed: entry.current.wind_speed_10m,
+    cloudCover: entry.current.cloud_cover ?? null,
     isDay: Boolean(entry.current.is_day),
     units: {
       temperature: entry.current_units.temperature_2m,
@@ -322,6 +381,7 @@ export function normalizeOpenWeatherEntry(entry) {
     weatherCode: null,
     conditionLabel: capitalize(entry.weather?.[0]?.description ?? "Condizione non disponibile"),
     windSpeed: (entry.wind?.speed ?? 0) * 3.6,
+    cloudCover: entry.clouds?.all ?? null,
     isDay: entry.weather?.[0]?.icon?.includes("d") ?? true,
     units: {
       temperature: "°C",
@@ -368,6 +428,7 @@ export function normalizeWeatherApiEntry(entry) {
     weatherCode: null,
     conditionLabel: entry.current.condition.text,
     windSpeed: entry.current.wind_kph,
+    cloudCover: entry.current.cloud ?? null,
     isDay: entry.current.is_day === 1,
     units: {
       temperature: "°C",
@@ -403,6 +464,7 @@ export function normalizeYrEntry(payload) {
     conditionLabel: weatherState.language === 'en'
       ? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
       : (YR_SYMBOL_IT[symbol] ?? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())),
+    cloudCover: instant.cloud_area_fraction ?? null,
     isDay,
     units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "m/s" }
   };
@@ -444,6 +506,7 @@ export function normalizeVisualCrossingEntry(payload) {
     windSpeed: cc.windspeed ?? null,
     weatherCode: null,
     conditionLabel: cc.conditions ?? "–",
+    cloudCover: cc.cloudcover ?? null,
     isDay,
     units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "km/h" }
   };
@@ -458,6 +521,45 @@ export function normalizeVisualCrossingForecast(payload) {
     max: day.tempmax ?? null,
     unit: "°C"
   }));
+}
+
+export function normalizePirateWeatherEntry(payload) {
+  const c = payload?.currently ?? {};
+  const icon = c.icon ?? "";
+  const isDay = !icon.includes("night") && !icon.startsWith("clear-night");
+  const conditionLabel = weatherState.language === 'en'
+    ? capitalize(icon.replace(/-/g, " "))
+    : (PIRATE_WEATHER_IT[icon] ?? capitalize(icon.replace(/-/g, " ")));
+  return {
+    temperature: c.temperature ?? null,
+    humidity: c.humidity != null ? Math.round(c.humidity * 100) : null,
+    pressure: c.pressure ?? null,
+    // Pirate Weather windSpeed is in m/s with units=si — convert to km/h
+    windSpeed: c.windSpeed != null ? c.windSpeed * 3.6 : null,
+    weatherCode: null,
+    conditionLabel,
+    cloudCover: c.cloudCover != null ? Math.round(c.cloudCover * 100) : null,
+    isDay,
+    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "km/h" }
+  };
+}
+
+export function normalizePirateWeatherForecast(payload) {
+  const days = payload?.daily?.data ?? [];
+  return days.slice(0, 5).map((day) => {
+    const icon = day.icon ?? "";
+    const conditionLabel = weatherState.language === 'en'
+      ? capitalize(icon.replace(/-/g, " "))
+      : (PIRATE_WEATHER_IT[icon] ?? capitalize(icon.replace(/-/g, " ")));
+    return {
+      label: formatForecastDate(new Date(day.time * 1000)),
+      weatherCode: null,
+      conditionLabel,
+      min: day.temperatureLow ?? null,
+      max: day.temperatureHigh ?? null,
+      unit: "°C"
+    };
+  });
 }
 
 export function parseQuotaFromHeaders(headers) {

@@ -11,6 +11,7 @@ import { weatherState, dom } from "../state.js";
 import { chunk, sleep, formatGeocodingLabel, formatLocationName } from "../utils.js";
 import { PROVIDERS, normalizeOpenMeteoEntry } from "../providers.js";
 import { updateMarkerMeshes, updateHeatmap } from "../globe/markers.js";
+import { updateCloudLayer } from "../globe/cloudLayer.js";
 import { applyLightingMode } from "../globe/lighting.js";
 import {
   saveWeatherCache,
@@ -45,7 +46,7 @@ export async function fetchOpenMeteoBatch(points) {
   url.searchParams.set("longitude", longitude);
   url.searchParams.set(
     "current",
-    "temperature_2m,relative_humidity_2m,pressure_msl,weather_code,wind_speed_10m,is_day"
+    "temperature_2m,relative_humidity_2m,pressure_msl,weather_code,wind_speed_10m,is_day,cloud_cover"
   );
   url.searchParams.set("timezone", "GMT");
 
@@ -214,6 +215,7 @@ export async function refreshGlobalWeather(forceStatus, samplePoints, summaryPoi
     }
     updateMarkerMeshes();
     updateHeatmap();
+    updateCloudLayer();
     updateHud();
 
     if (forceStatus) {

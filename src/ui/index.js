@@ -1,6 +1,6 @@
 import { weatherState, dom } from "../state.js";
 import { WEATHER_CODE_LABELS } from "../constants.js";
-import { formatCoordinates, formatDateTime, conditionIconMarkup, markerIcon, terminatorIcon, cloudIcon, buttonMarkup } from "../utils.js";
+import { formatCoordinates, formatDateTime, conditionIconMarkup, markerIcon, terminatorIcon, cloudIcon, cloudCoverIcon, buttonMarkup } from "../utils.js";
 import { PROVIDERS } from "../providers.js";
 
 let snackbarTimer = null;
@@ -81,6 +81,7 @@ export function updateSelectionPanel() {
     dom.selectionHumidity.textContent = "-";
     dom.selectionPressure.textContent = "-";
     dom.selectionDaylight.textContent = "-";
+    if (dom.selectionCloudCover) dom.selectionCloudCover.textContent = "-";
     return;
   }
 
@@ -95,6 +96,11 @@ export function updateSelectionPanel() {
     ? `${point.current.pressure.toFixed(0)} ${point.current.units.pressure}`
     : "-";
   dom.selectionDaylight.textContent = point.current.isDay ? "Giorno" : "Notte";
+  if (dom.selectionCloudCover) {
+    dom.selectionCloudCover.textContent = point.current.cloudCover != null
+      ? `${point.current.cloudCover.toFixed(0)} %`
+      : "-";
+  }
 }
 
 export function resetSelectionPanel() {
@@ -107,6 +113,7 @@ export function resetSelectionPanel() {
   dom.selectionCoordinates.textContent = "-";
   dom.selectionDaylight.textContent = "-";
   dom.selectionProvider.textContent = "-";
+  if (dom.selectionCloudCover) dom.selectionCloudCover.textContent = "-";
   renderForecast([]);
 }
 
@@ -184,6 +191,13 @@ export function updateToggleButtons() {
     weatherState.showClouds ? "Nascondi nuvole" : "Mostra nuvole"
   );
   dom.toggleProviderBoxButton.textContent = weatherState.showProviderDock ? "▾" : "▴";
+  if (dom.toggleCloudCoverButton) {
+    dom.toggleCloudCoverButton.innerHTML = buttonMarkup(
+      cloudCoverIcon(),
+      weatherState.showCloudCover ? "Nascondi copertura nuvole" : "Copertura nuvole"
+    );
+    dom.toggleCloudCoverButton.classList.toggle("active", weatherState.showCloudCover);
+  }
   if (dom.toggleLanguageButton) {
     const langLabel = weatherState.language === 'it' ? 'Italiano' : 'English';
     dom.toggleLanguageButton.innerHTML = buttonMarkup(

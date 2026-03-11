@@ -9,12 +9,13 @@ import { PROVIDERS } from "./providers.js";
 // Globe modules
 import {
   renderer, scene, camera, controls, globeGroup,
-  earth, clouds, heatmapMesh,
+  earth, clouds, heatmapMesh, cloudCoverMesh,
   pointer, raycaster,
   initMarkers
 } from "./globe/scene.js";
 import { applyLightingMode, updateSunDirection } from "./globe/lighting.js";
 import { updateMarkerMeshes, updateMarkerVisibility, buildHeatmapCanvas, updateSelectedMarker } from "./globe/markers.js";
+import { buildCloudCanvas } from "./globe/cloudLayer.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
 
 // Weather modules
@@ -157,6 +158,14 @@ dom.toggleHeatmapButton?.addEventListener("click", () => {
   } else {
     dom.toggleHeatmapButton.classList.remove("active");
   }
+});
+dom.toggleCloudCoverButton?.addEventListener("click", () => {
+  weatherState.showCloudCover = !weatherState.showCloudCover;
+  cloudCoverMesh.visible = weatherState.showCloudCover;
+  if (weatherState.showCloudCover) {
+    setTimeout(() => buildCloudCanvas(weatherState.points), 0);
+  }
+  updateToggleButtons();
 });
 dom.toggleLanguageButton?.addEventListener('click', () => {
   weatherState.language = weatherState.language === 'it' ? 'en' : 'it';

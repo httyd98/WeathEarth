@@ -113,6 +113,24 @@ heatmapMesh.renderOrder = 3;
 heatmapMesh.visible = false;
 globeGroup.add(heatmapMesh);
 
+export const cloudCoverCanvas = document.createElement("canvas");
+cloudCoverCanvas.width = 512;
+cloudCoverCanvas.height = 256;
+export const cloudCoverTexture = new THREE.CanvasTexture(cloudCoverCanvas);
+cloudCoverTexture.colorSpace = THREE.SRGBColorSpace;
+export const cloudCoverMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.039, 64, 32),
+  new THREE.MeshBasicMaterial({
+    map: cloudCoverTexture,
+    transparent: true,
+    opacity: 1.0,
+    depthWrite: false
+  })
+);
+cloudCoverMesh.renderOrder = 5;
+cloudCoverMesh.visible = false;
+globeGroup.add(cloudCoverMesh);
+
 const starField = createStarField();
 scene.add(starField);
 

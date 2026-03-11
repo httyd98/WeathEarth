@@ -79,6 +79,10 @@
               <dd id="selection-humidity">-</dd>
             </div>
             <div>
+              <dt>Copertura nuvole</dt>
+              <dd id="selection-cloud-cover">-</dd>
+            </div>
+            <div>
               <dt>Pressione</dt>
               <dd id="selection-pressure">-</dd>
             </div>
@@ -145,6 +149,16 @@
                   <path d="M4.5 11 Q6 5 8 8 Q10 11 11.5 5" stroke="currentColor" stroke-linecap="round"/>
                 </svg>
                 Heatmap temperatura
+              </span>
+            </button>
+            <button id="toggle-cloud-cover-button" type="button" class="secondary-button">
+              <span class="button-content">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7.2 17a4.2 4.2 0 1 1 .5-8.4A5.4 5.4 0 0 1 17.9 10.5a3.3 3.3 0 1 1 .1 6.5H7.2Z" fill="currentColor" opacity="0.5"/>
+                  <path d="M5 19a3.5 3.5 0 1 1 .4-7 4.5 4.5 0 0 1 8.5 1.5A2.7 2.7 0 1 1 14 19H5Z" fill="currentColor"/>
+                  <text x="14" y="22" font-size="7" font-weight="bold" fill="currentColor" font-family="sans-serif">%</text>
+                </svg>
+                Copertura nuvole
               </span>
             </button>
             <button id="toggle-language-button" class="secondary-button" type="button">

@@ -246,6 +246,16 @@ export function cloudIcon() {
   `;
 }
 
+export function cloudCoverIcon() {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7.2 17a4.2 4.2 0 1 1 .5-8.4A5.4 5.4 0 0 1 17.9 10.5a3.3 3.3 0 1 1 .1 6.5H7.2Z" fill="currentColor" opacity="0.5"/>
+      <path d="M5 19a3.5 3.5 0 1 1 .4-7 4.5 4.5 0 0 1 8.5 1.5A2.7 2.7 0 1 1 14 19H5Z" fill="currentColor"/>
+      <text x="14" y="22" font-size="7" font-weight="bold" fill="currentColor" font-family="sans-serif">%</text>
+    </svg>
+  `;
+}
+
 export function buttonMarkup(icon, label) {
   return `<span class="button-content">${icon}<span>${label}</span></span>`;
 }
