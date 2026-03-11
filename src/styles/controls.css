@@ -1,0 +1,241 @@
+.provider-dock {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  width: min(360px, calc(100vw - 24px));
+  z-index: 2;
+}
+
+.control-dock {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 280px;
+  display: grid;
+  gap: 10px;
+  z-index: 3;
+}
+
+.search-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 24px));
+  z-index: 2;
+}
+
+.provider-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.chip {
+  padding: 7px 10px;
+  border: 1px solid rgba(151, 192, 255, 0.18);
+  border-radius: 999px;
+  color: #d9ecff;
+  background: rgba(12, 24, 47, 0.58);
+  font-size: 0.74rem;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.search-input-wrap {
+  position: relative;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: var(--text);
+  background: rgba(7, 18, 36, 0.84);
+  border: 1px solid rgba(151, 192, 255, 0.16);
+}
+
+input::placeholder {
+  color: #7d93ba;
+}
+
+.search-input-wrap input {
+  padding-left: 50px;
+}
+
+button {
+  padding: 11px 14px;
+  border-radius: 14px;
+  color: #04111d;
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+  cursor: pointer;
+  font-weight: 700;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
+  box-shadow: 0 8px 25px rgba(92, 195, 255, 0.35);
+}
+
+.collapse-button {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(15, 31, 58, 0.84);
+  border: 1px solid rgba(151, 192, 255, 0.16);
+  box-shadow: none;
+}
+
+.location-button {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(15, 31, 58, 0.84);
+  border: 1px solid rgba(151, 192, 255, 0.16);
+  box-shadow: none;
+}
+
+.location-button svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  margin: 0 auto;
+}
+
+.button-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.button-content svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex-shrink: 0;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+.secondary-button {
+  width: 100%;
+  color: var(--text);
+  background: rgba(15, 31, 58, 0.84);
+  border: 1px solid rgba(151, 192, 255, 0.16);
+  box-shadow: none;
+  text-align: left;
+}
+
+/* ── Snackbar ─────────────────────────────────────────────────────────────── */
+
+.snackbar {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(8, 20, 44, 0.94);
+  color: var(--text);
+  border: 1px solid rgba(151, 192, 255, 0.22);
+  border-radius: 10px;
+  padding: 11px 20px;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  text-align: center;
+  z-index: 200;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  max-width: min(500px, calc(100vw - 48px));
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.snackbar.snackbar-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.snackbar.snackbar-error {
+  border-color: rgba(255, 100, 70, 0.45);
+  background: rgba(55, 15, 10, 0.94);
+}
+
+.snackbar.snackbar-warn {
+  border-color: rgba(255, 195, 60, 0.40);
+  background: rgba(48, 32, 5, 0.94);
+}
+
+@media (max-width: 960px) {
+  .provider-dock {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+  }
+
+  .control-dock,
+  .search-dock {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    transform: none;
+  }
+
+  .control-dock {
+    top: 12px;
+  }
+
+  .search-dock {
+    bottom: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .quota-grid,
+  .search-form {
+    grid-template-columns: 1fr;
+  }
+
+  .snackbar {
+    bottom: 72px;
+    font-size: 0.80rem;
+  }
+}

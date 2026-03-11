@@ -1,0 +1,12 @@
+:root {
+  color-scheme: dark;
+  --bg-0: #02030a;
+  --bg-1: #07111f;
+  --panel: rgba(4, 12, 24, 0.72);
+  --panel-border: rgba(162, 197, 255, 0.16);
+  --text: #eef4ff;
+  --muted: #94a8c9;
+  --accent: #8ce6ff;
+  --accent-soft: #c7f7ff;
+  --shadow: 0 24px 90px rgba(0, 0, 0, 0.45);
+}

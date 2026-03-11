@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <title>WheathEarth</title>
+    <title>TerraCast</title>
     <meta
       name="description"
       content="Globo 3D con meteo globale, selezione puntuale, geolocalizzazione e provider multipli."
@@ -20,7 +20,7 @@
       <aside class="hud">
         <div class="panel brand-panel">
           <p class="eyebrow">Global Weather Observatory</p>
-          <h1>WheathEarth</h1>
+          <h1>TerraCast</h1>
           <p class="lede">
             Condizioni meteo globali in tempo quasi reale, con selezione puntuale
             sul globo, ricerca località e geolocalizzazione browser.
@@ -52,7 +52,6 @@
             </div>
           </div>
           <div class="actions">
-            <button id="refresh-button" type="button">Aggiorna mappa</button>
             <p id="status-line" class="status-line">Connessione ai feed pubblici...</p>
           </div>
         </div>
@@ -138,6 +137,16 @@
         <button id="toggle-clouds-button" class="secondary-button" type="button">
           Nascondi nuvole
         </button>
+            <button id="toggle-heatmap-button" type="button" class="secondary-button">
+              <span class="button-content">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1464e0"/><stop offset="50%" stop-color="#22dd55"/><stop offset="100%" stop-color="#dd2200"/></linearGradient></defs>
+                  <circle cx="8" cy="8" r="6.5" stroke="url(#hg)"/>
+                  <path d="M4.5 11 Q6 5 8 8 Q10 11 11.5 5" stroke="currentColor" stroke-linecap="round"/>
+                </svg>
+                Heatmap temperatura
+              </span>
+            </button>
       </section>
 
       <section id="provider-dock" class="provider-dock panel">
@@ -158,9 +167,7 @@
         <div id="provider-dock-content">
           <label class="label label-block" for="provider-select">Provider</label>
           <select id="provider-select">
-            <option value="openMeteo">Open-Meteo</option>
-            <option value="openWeather">OpenWeather</option>
-            <option value="weatherApi">WeatherAPI</option>
+            <!-- Options are populated dynamically from PROVIDERS in main.js -->
           </select>
           <label class="label label-block" for="provider-api-key">Chiave API</label>
           <input
@@ -226,5 +233,6 @@
         </form>
       </section>
     </div>
+    <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
   </body>
 </html>

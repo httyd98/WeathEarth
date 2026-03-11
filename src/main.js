@@ -8,20 +8,29 @@ const OPEN_WEATHER_CURRENT_ENDPOINT = "https://api.openweathermap.org/data/2.5/w
 const OPEN_WEATHER_FORECAST_ENDPOINT = "https://api.openweathermap.org/data/2.5/forecast";
 const WEATHER_API_CURRENT_ENDPOINT = "https://api.weatherapi.com/v1/current.json";
 const WEATHER_API_FORECAST_ENDPOINT = "https://api.weatherapi.com/v1/forecast.json";
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
-const REQUEST_BATCH_SIZE = 80;
+const YR_FORECAST_ENDPOINT = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
+const VISUAL_CROSSING_ENDPOINT = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline";
+// Quota analysis (Open-Meteo free tier ~10,000 calls/day):
+// Lat-proportional grid: ~1638 points (72 max at equator, ~13 at ±80°)
+// Batches per refresh: ceil(1638/150) ≈ 11 batches
+// 24 refreshes/day (1/h) × 11 batches = 264 calls/day (2.6% of quota)
+// Fewer points near poles = more uniform spherical coverage
+const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour — 24 refreshes/day
+const REQUEST_BATCH_SIZE = 150;
+const BATCH_DELAY_MS = 400;
+const MAX_BATCH_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 2000;
 const GLOBE_RADIUS = 4.2;
 const MARKER_ALTITUDE = 0.16;
 const BASE_MARKER_RADIUS = 0.034;
-const EARTH_DAY_TEXTURE_URL = "/textures/earth-day-8k.jpg";
+const EARTH_DAY_TEXTURE_URL = "/textures/earth-topo-bathy.jpg";
 const EARTH_NIGHT_TEXTURE_URL = "/textures/earth-night-8k.jpg";
 const EARTH_CLOUDS_TEXTURE_URL = "/textures/earth-clouds-8k.jpg";
 const EARTH_NORMAL_TEXTURE_URL = "/textures/earth-normal-8k.jpg";
 const EARTH_SPECULAR_TEXTURE_URL = "/textures/earth-specular-8k.jpg";
+const EARTH_HEIGHT_TEXTURE_URL = "/textures/earth-height.jpg";
 const CLICK_DISTANCE_THRESHOLD = 7;
-const STORAGE_PREFIX = "wheath-earth";
-const LATITUDES = Array.from({ length: 23 }, (_, index) => 82.5 - index * 7.5);
-const LONGITUDES = Array.from({ length: 48 }, (_, index) => -180 + index * 7.5);
+const STORAGE_PREFIX = "terracast";
 const SUMMARY_LATITUDES = Array.from({ length: 9 }, (_, index) => 80 - index * 20);
 const SUMMARY_LONGITUDES = Array.from({ length: 18 }, (_, index) => -180 + index * 20);
 
@@ -58,7 +67,6 @@ const WEATHER_CODE_LABELS = {
 
 const dom = {
   sceneRoot: document.querySelector("#scene-root"),
-  refreshButton: document.querySelector("#refresh-button"),
   locateMeButton: document.querySelector("#locate-me-button"),
   searchForm: document.querySelector("#location-search-form"),
   searchInput: document.querySelector("#location-search"),
@@ -90,7 +98,9 @@ const dom = {
   toggleMarkersButton: document.querySelector("#toggle-markers-button"),
   toggleTerminatorButton: document.querySelector("#toggle-terminator-button"),
   toggleCloudsButton: document.querySelector("#toggle-clouds-button"),
-  toggleProviderBoxButton: document.querySelector("#toggle-provider-box-button")
+  toggleProviderBoxButton: document.querySelector("#toggle-provider-box-button"),
+  snackbar: document.querySelector("#snackbar"),
+  toggleHeatmapButton: document.querySelector("#toggle-heatmap-button")
 };
 
 const PROVIDERS = {
@@ -242,6 +252,72 @@ const PROVIDERS = {
         quota: parseQuotaFromHeaders(response.headers) ?? { note: this.quotaNote }
       };
     }
+  },
+  yr: {
+    id: "yr",
+    name: "Yr.no (Met.no)",
+    requiresKey: false,
+    supportsGlobal: false,
+    quotaNote: "Quota gratuita, nessuna chiave richiesta. Rispettare le linee guida d'uso di Met.no.",
+    async fetchCurrent({ lat, lon }) {
+      const url = new URL(YR_FORECAST_ENDPOINT);
+      url.searchParams.set("lat", String(Math.round(lat * 10000) / 10000));
+      url.searchParams.set("lon", String(Math.round(lon * 10000) / 10000));
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Yr.no current request failed: ${response.status}`);
+      }
+      const payload = await response.json();
+      return {
+        current: normalizeYrEntry(payload),
+        quota: { note: this.quotaNote }
+      };
+    },
+    async fetchForecast({ lat, lon }) {
+      const url = new URL(YR_FORECAST_ENDPOINT);
+      url.searchParams.set("lat", String(Math.round(lat * 10000) / 10000));
+      url.searchParams.set("lon", String(Math.round(lon * 10000) / 10000));
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Yr.no forecast request failed: ${response.status}`);
+      }
+      const payload = await response.json();
+      return {
+        forecast: normalizeYrForecast(payload),
+        quota: { note: this.quotaNote }
+      };
+    }
+  },
+  visualCrossing: {
+    id: "visualCrossing",
+    name: "Visual Crossing",
+    requiresKey: true,
+    supportsGlobal: false,
+    quotaNote: "Quota gratuita: 1000 record/giorno.",
+    async fetchCurrent({ lat, lon, apiKey }) {
+      const url = `${VISUAL_CROSSING_ENDPOINT}/${lat},${lon}/today?unitGroup=metric&include=current&key=${apiKey}&contentType=json`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Visual Crossing current request failed: ${response.status}`);
+      }
+      const payload = await response.json();
+      return {
+        current: normalizeVisualCrossingEntry(payload),
+        quota: parseQuotaFromHeaders(response.headers) ?? { note: this.quotaNote }
+      };
+    },
+    async fetchForecast({ lat, lon, apiKey }) {
+      const url = `${VISUAL_CROSSING_ENDPOINT}/${lat},${lon}?unitGroup=metric&include=days&key=${apiKey}&contentType=json`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Visual Crossing forecast request failed: ${response.status}`);
+      }
+      const payload = await response.json();
+      return {
+        forecast: normalizeVisualCrossingForecast(payload),
+        quota: parseQuotaFromHeaders(response.headers) ?? { note: this.quotaNote }
+      };
+    }
   }
 };
 
@@ -252,6 +328,7 @@ const weatherState = {
     ...point,
     current: null
   })),
+  showHeatmap: false,
   selectedPoint: null,
   averageMarkerScale: 1,
   lastUpdatedAt: null,
@@ -320,7 +397,7 @@ scene.add(ambientLight);
 const hemisphereLight = new THREE.HemisphereLight(0xdff4ff, 0x173457, 0.4);
 scene.add(hemisphereLight);
 
-const sunlight = new THREE.DirectionalLight(0xf8fcff, 3.15);
+const sunlight = new THREE.DirectionalLight(0xf8fcff, 3.4);
 sunlight.position.set(10, 3, 8);
 scene.add(sunlight);
 
@@ -335,29 +412,29 @@ controls.target.copy(globeGroup.position);
 
 const earthMaterial = new THREE.MeshStandardMaterial({
   color: 0xffffff,
-  roughness: 0.78,
+  roughness: 0.72,
   metalness: 0.02,
   emissive: new THREE.Color("#0a1a30"),
   emissiveIntensity: 0.08,
-  normalScale: new THREE.Vector2(1.05, 1.05)
+  normalScale: new THREE.Vector2(3.5, 3.5)
 });
 
 const earth = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS, 128, 128),
+  new THREE.SphereGeometry(GLOBE_RADIUS, 256, 256),
   earthMaterial
 );
 earth.renderOrder = 1;
 globeGroup.add(earth);
 
 const nightLights = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.004, 64, 64),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.038, 64, 64),
   createNightLightsMaterial()
 );
 nightLights.renderOrder = 2;
 globeGroup.add(nightLights);
 
 const terminatorOverlay = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.008, 64, 64),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.038, 64, 64),
   createTerminatorMaterial()
 );
 terminatorOverlay.renderOrder = 3;
@@ -398,7 +475,7 @@ const atmosphere = new THREE.Mesh(
 globeGroup.add(atmosphere);
 
 const clouds = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.018, 80, 80),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.038, 80, 80),
   new THREE.MeshStandardMaterial({
     color: 0xffffff,
     transparent: true,
@@ -411,6 +488,25 @@ const clouds = new THREE.Mesh(
 clouds.renderOrder = 4;
 globeGroup.add(clouds);
 clouds.visible = weatherState.showClouds;
+
+const heatmapCanvas = document.createElement("canvas");
+heatmapCanvas.width = 512;
+heatmapCanvas.height = 256;
+const heatmapTexture = new THREE.CanvasTexture(heatmapCanvas);
+heatmapTexture.colorSpace = THREE.SRGBColorSpace;
+const heatmapMaterial = new THREE.MeshBasicMaterial({
+  map: heatmapTexture,
+  transparent: true,
+  opacity: 0.82,
+  depthWrite: false
+});
+const heatmapMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.038, 64, 32),
+  heatmapMaterial
+);
+heatmapMesh.renderOrder = 3;
+heatmapMesh.visible = false;
+globeGroup.add(heatmapMesh);
 
 const starField = createStarField();
 scene.add(starField);
@@ -451,15 +547,32 @@ window.addEventListener("resize", handleResize);
 renderer.domElement.addEventListener("pointerdown", handlePointerDown);
 renderer.domElement.addEventListener("pointermove", handlePointerMove);
 window.addEventListener("pointerup", handlePointerUp);
-dom.refreshButton.addEventListener("click", () => refreshGlobalWeather(true));
 dom.locateMeButton.addEventListener("click", () => requestCurrentLocationSelection(true));
 dom.searchForm.addEventListener("submit", handleSearchSubmit);
+// Populate provider select dynamically from PROVIDERS so new entries are always visible
+Object.values(PROVIDERS).forEach((provider) => {
+  const option = document.createElement("option");
+  option.value = provider.id;
+  option.textContent = provider.name;
+  dom.providerSelect.appendChild(option);
+});
+dom.providerSelect.value = loadStoredProviderId();
 dom.providerSelect.addEventListener("change", handleProviderChange);
 dom.providerSaveButton.addEventListener("click", handleProviderSave);
 dom.toggleMarkersButton.addEventListener("click", handleToggleMarkers);
 dom.toggleTerminatorButton.addEventListener("click", handleToggleTerminator);
 dom.toggleCloudsButton.addEventListener("click", handleToggleClouds);
 dom.toggleProviderBoxButton.addEventListener("click", handleToggleProviderBox);
+dom.toggleHeatmapButton?.addEventListener("click", () => {
+  weatherState.showHeatmap = !weatherState.showHeatmap;
+  heatmapMesh.visible = weatherState.showHeatmap;
+  if (weatherState.showHeatmap) {
+    setTimeout(() => buildHeatmapCanvas(weatherState.points), 0);
+    dom.toggleHeatmapButton.classList.add("active");
+  } else {
+    dom.toggleHeatmapButton.classList.remove("active");
+  }
+});
 
 refreshGlobalWeather(false);
 requestCurrentLocationSelection(false);
@@ -520,30 +633,20 @@ function handlePointerUp(event) {
     return;
   }
 
-  const markerIndex = intersectMarkerIndex();
-  if (markerIndex !== null) {
-    const point = weatherState.points[markerIndex];
-    selectLocation({
-      lat: point.lat,
-      lon: point.lon,
-      label: point.label
-    });
-    return;
-  }
-
+  // Always raycast the earth sphere for accurate surface position under cursor.
+  // This avoids false hits on back-facing InstancedMesh instances and perspective
+  // offset issues near the globe limb.
   const earthHit = intersectEarth();
-  if (earthHit) {
-    const point = globeGroup.worldToLocal(earthHit.point.clone());
-    const { lat, lon } = vector3ToLatLon(point);
-    selectLocation({
-      lat,
-      lon,
-      label: formatLocationName(lat, lon)
-    });
+  if (!earthHit) {
+    clearSelection();
     return;
   }
 
-  clearSelection();
+  const localPoint = globeGroup.worldToLocal(earthHit.point.clone());
+  const { lat, lon } = vector3ToLatLon(localPoint);
+
+  // Use exact click coordinates — all providers support arbitrary lat/lon
+  selectLocation({ lat, lon, label: formatLocationName(lat, lon) });
 }
 
 async function handleSearchSubmit(event) {
@@ -653,6 +756,23 @@ function intersectEarth() {
   return intersections[0] ?? null;
 }
 
+function findNearestSamplePoint(lat, lon) {
+  let nearest = null;
+  let minDist2 = Infinity;
+  for (const point of weatherState.points) {
+    let dlat = lat - point.lat;
+    let dlon = lon - point.lon;
+    if (dlon > 180) dlon -= 360;
+    if (dlon < -180) dlon += 360;
+    const dist2 = dlat * dlat + dlon * dlon;
+    if (dist2 < minDist2) {
+      minDist2 = dist2;
+      nearest = point;
+    }
+  }
+  return nearest;
+}
+
 function createStarField() {
   const geometry = new THREE.BufferGeometry();
   const positions = [];
@@ -713,7 +833,7 @@ function createTerminatorMaterial() {
         float night = 1.0 - smoothstep(-0.16, 0.08, sun);
         float edge = 1.0 - smoothstep(0.0, 0.08, abs(sun));
         vec3 color = vec3(0.01, 0.03, 0.08) * night + vec3(0.18, 0.32, 0.46) * edge * 0.08;
-        float alpha = night * 0.38 + edge * 0.04;
+        float alpha = night * 0.32 + edge * 0.04;
         gl_FragColor = vec4(color, alpha);
       }
     `
@@ -757,23 +877,34 @@ function createNightLightsMaterial() {
 }
 
 function buildSamplePoints() {
-  return LATITUDES.flatMap((lat) =>
-    LONGITUDES.map((lon) => ({
-      lat,
-      lon,
-      label: formatLocationName(lat, lon)
-    }))
-  );
+  const points = [];
+  const BASE_LON_COUNT = 72;
+  const latitudes = Array.from({ length: 33 }, (_, i) => -80 + i * 5);
+  latitudes.forEach((lat, latIndex) => {
+    const lonCount = Math.max(6, Math.round(BASE_LON_COUNT * Math.cos((lat * Math.PI) / 180)));
+    const lonStep = 360 / lonCount;
+    const offset = latIndex % 2 === 1 ? lonStep / 2 : 0;
+    for (let j = 0; j < lonCount; j++) {
+      const lon = (((-180 + j * lonStep + offset) + 180) % 360) - 180;
+      points.push({ lat, lon, label: formatLocationName(lat, lon) });
+    }
+  });
+  return points;
 }
 
 function buildSummaryPoints() {
-  return SUMMARY_LATITUDES.flatMap((lat) =>
-    SUMMARY_LONGITUDES.map((lon) => ({
-      lat,
-      lon,
-      label: formatLocationName(lat, lon)
-    }))
-  );
+  const points = [];
+  const BASE_LON_COUNT = 18;
+  SUMMARY_LATITUDES.forEach((lat, latIndex) => {
+    const lonCount = Math.max(3, Math.round(BASE_LON_COUNT * Math.cos((lat * Math.PI) / 180)));
+    const lonStep = 360 / lonCount;
+    const offset = latIndex % 2 === 1 ? lonStep / 2 : 0;
+    for (let j = 0; j < lonCount; j++) {
+      const lon = (((-180 + j * lonStep + offset) + 180) % 360) - 180;
+      points.push({ lat, lon, label: formatLocationName(lat, lon) });
+    }
+  });
+  return points;
 }
 
 function latLonToVector3(lat, lon, radius, target) {
@@ -851,15 +982,21 @@ function updateSelectedMarker() {
     return;
   }
 
+  // Scale marker altitude with camera distance to avoid parallax offset at close zoom.
+  // Formula: keep visual "float angle" ≈ constant by scaling altitude with height above surface.
+  const camDist = controls.getDistance();
+  const heightAboveSurface = camDist - GLOBE_RADIUS;
+  const dynamicAlt = Math.max(0.02, heightAboveSurface * 0.018);
+
   latLonToVector3(
     weatherState.selectedPoint.lat,
     weatherState.selectedPoint.lon,
-    GLOBE_RADIUS + MARKER_ALTITUDE + 0.04,
+    GLOBE_RADIUS + dynamicAlt,
     localPoint
   );
   selectedMarker.position.copy(localPoint);
   selectedMarker.scale.setScalar(weatherState.averageMarkerScale * 1.5);
-  selectedMarker.visible = weatherState.showMarkers;
+  selectedMarker.visible = true; // always visible when a point is selected, regardless of global markers toggle
 }
 
 function colorForTemperature(temperature) {
@@ -886,7 +1023,7 @@ function updateSunDirection() {
     fillLight.position.copy(cameraBias.clone().multiplyScalar(8));
   } else {
     sunlight.position.copy(cameraBias.clone().multiplyScalar(16));
-    fillLight.position.copy(cameraBias.clone().multiplyScalar(11));
+    fillLight.position.set(-5, 2, 7);
   }
 }
 
@@ -895,15 +1032,15 @@ function applyLightingMode() {
     ambientLight.intensity = 0.38;
     hemisphereLight.intensity = 0.28;
     sunlight.intensity = 2.65;
-    fillLight.intensity = 0.15;
+    fillLight.intensity = 0;
     earthMaterial.emissiveIntensity = 0.08;
     terminatorOverlay.visible = true;
     nightLights.visible = true;
   } else {
-    ambientLight.intensity = 0.95;
+    ambientLight.intensity = 1.05;
     hemisphereLight.intensity = 0.8;
-    sunlight.intensity = 1.35;
-    fillLight.intensity = 0.55;
+    sunlight.intensity = 1.5;
+    fillLight.intensity = 0.28;
     earthMaterial.emissiveIntensity = 0.12;
     terminatorOverlay.visible = false;
     nightLights.visible = false;
@@ -950,7 +1087,6 @@ function getSunDirection(date) {
 }
 
 async function refreshGlobalWeather(forceStatus) {
-  dom.refreshButton.disabled = true;
   setStatus(weatherState.showMarkers ? "Aggiornamento dati globali..." : "Aggiornamento riepilogo globale...");
 
   try {
@@ -969,6 +1105,11 @@ async function refreshGlobalWeather(forceStatus) {
       ? activeProvider
       : PROVIDERS.openMeteo;
     const apiKey = getStoredApiKey(activeProvider.id);
+
+    if (!activeProvider.supportsGlobal && activeProvider.id !== PROVIDERS.openMeteo.id) {
+      setStatus(`Layer globale: Open-Meteo (${activeProvider.name} non supporta i dati globali). Caricamento...`);
+    }
+
     const { entries, quota, failedBatches = 0 } = await globalProvider.fetchGlobal(samplePoints, apiKey);
 
     let updatedCount = 0;
@@ -989,11 +1130,13 @@ async function refreshGlobalWeather(forceStatus) {
       setProviderQuota(activeProvider.id, quota);
     }
 
+    saveWeatherCache(weatherState.points);
     updateMarkerMeshes();
+    updateHeatmap();
     updateHud();
 
     if (forceStatus) {
-      setStatus(`Refresh manuale completato. Layer globale: ${globalProvider.name}.`);
+      setStatus(`Feed globale aggiornato. Layer: ${globalProvider.name}.`);
     } else if (failedBatches > 0) {
       setStatus(
         `Aggiornamento globale parziale: ${updatedCount}/${samplePoints.length} punti caricati con ${globalProvider.name}.`
@@ -1007,9 +1150,40 @@ async function refreshGlobalWeather(forceStatus) {
     }
   } catch (error) {
     console.error(error);
-    setStatus("Errore nel refresh globale. Mantengo l'ultimo dataset valido.");
+    const isQuota = error?.status === 429 || String(error?.message).includes("429");
+    const cache = loadWeatherCache();
+    if (cache) {
+      applyCachedWeather(cache);
+      updateMarkerMeshes();
+      updateHud();
+      const reason = isQuota
+        ? "Quota Open-Meteo esaurita. Visualizzo gli ultimi dati dalla cache."
+        : "Errore di rete. Visualizzo gli ultimi dati dalla cache.";
+      setStatus(reason);
+      if (forceStatus) showSnackbar(reason, "warn");
+    } else {
+      const snapshot = loadWeatherSnapshot();
+      if (snapshot) {
+        applyCachedWeather(snapshot);
+        updateMarkerMeshes();
+        updateHud();
+        const snapshotDate = new Date(snapshot.ts).toLocaleString("it-IT", {
+          day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+        });
+        const reason = isQuota
+          ? `Quota esaurita. Dati dal ${snapshotDate} (snapshot).`
+          : `Errore di rete. Dati dal ${snapshotDate} (snapshot).`;
+        setStatus(reason);
+        if (forceStatus) showSnackbar(reason, "warn");
+      } else {
+        const reason = isQuota
+          ? "Quota Open-Meteo esaurita. Riprova domani o dopo mezzanotte UTC."
+          : "Errore di rete nel refresh globale. Nessun dato disponibile.";
+        setStatus(reason);
+        if (forceStatus) showSnackbar(reason, "error");
+      }
+    }
   } finally {
-    dom.refreshButton.disabled = false;
   }
 }
 
@@ -1026,8 +1200,9 @@ async function refreshSelectedPointWeather(forceStatus = false) {
     activeProvider = PROVIDERS.openMeteo;
     apiKey = "";
     setProviderQuota(requestedProvider.id, {
-      note: `Chiave assente. Dettaglio locale in fallback su ${activeProvider.name}.`
+      note: `Chiave API non configurata per ${requestedProvider.name}. Dettaglio locale via Open-Meteo. Inserisci la chiave nel pannello Provider.`
     });
+    setStatus(`Chiave API assente per ${requestedProvider.name} — uso Open-Meteo come fallback.`);
   }
 
   const requestToken = ++weatherState.selectionRequestToken;
@@ -1087,9 +1262,10 @@ async function refreshSelectedPointWeather(forceStatus = false) {
         : `Punto selezionato aggiornato tramite ${activeProvider.name}.`
     );
   } catch (error) {
-    console.error(error);
+    console.error(`[${activeProvider.name}] fetchCurrent/fetchForecast failed:`, error);
 
     if (activeProvider.id !== PROVIDERS.openMeteo.id) {
+      const primaryMsg = error?.message ?? String(error);
       try {
         const fallback = PROVIDERS.openMeteo;
         const [{ current, quota }, { forecast }] = await Promise.all([
@@ -1113,24 +1289,48 @@ async function refreshSelectedPointWeather(forceStatus = false) {
         weatherState.selectedPoint.forecast = forecast;
         weatherState.selectedPoint.providerName = `${fallback.name} (fallback)`;
         setProviderQuota(activeProvider.id, {
-          note: `Provider fallito. Dettaglio locale in fallback su ${fallback.name}.`
+          note: `${activeProvider.name} non disponibile (${primaryMsg}). Dati via Open-Meteo.`
         });
         setProviderQuota(fallback.id, quota ?? { note: fallback.quotaNote });
         updateSelectionPanel();
         renderForecast(forecast);
-        setStatus(`Fallback locale attivo: ${fallback.name}.`);
+        setStatus(`${activeProvider.name} non disponibile — dati locali via ${fallback.name}.`);
         return;
       } catch (fallbackError) {
-        console.error(fallbackError);
+        console.error("[Open-Meteo fallback] failed:", fallbackError);
+        const fallbackMsg = fallbackError?.message ?? String(fallbackError);
+        const isFallbackQuota =
+          fallbackError?.status === 429 || fallbackMsg.includes("429");
+        weatherState.selectedPoint.current = null;
+        weatherState.selectedPoint.forecast = null;
+        weatherState.selectedPoint.providerName = activeProvider.name;
+        updateSelectionPanel();
+        renderForecast([]);
+        if (isFallbackQuota) {
+          setStatus(
+            `${activeProvider.name} non disponibile e quota Open-Meteo esaurita. Riprova domani o dopo mezzanotte UTC.`
+          );
+        } else {
+          setStatus(
+            `${activeProvider.name} non disponibile (${primaryMsg}) e Open-Meteo fallback fallito (${fallbackMsg}).`
+          );
+        }
+        return;
       }
     }
 
+    // Active provider IS Open-Meteo — show specific error
+    const isQuota = error?.status === 429 || String(error?.message).includes("429");
     weatherState.selectedPoint.current = null;
     weatherState.selectedPoint.forecast = null;
     weatherState.selectedPoint.providerName = activeProvider.name;
     updateSelectionPanel();
     renderForecast([]);
-    setStatus(`Errore nel caricamento locale con ${activeProvider.name}.`);
+    if (isQuota) {
+      setStatus("Quota Open-Meteo esaurita. Dati locali non disponibili. Riprova domani o dopo mezzanotte UTC.");
+    } else {
+      setStatus(`Errore nel caricamento locale con ${activeProvider.name}: ${error?.message ?? error}`);
+    }
   }
 }
 
@@ -1225,7 +1425,9 @@ async function fetchOpenMeteoBatch(points) {
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Open-Meteo batch request failed: ${response.status}`);
+    const error = new Error(`Open-Meteo batch request failed: ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
 
   const payload = await response.json();
@@ -1236,15 +1438,63 @@ async function fetchOpenMeteoGlobal(points) {
   const result = [];
   const batches = chunk(points, REQUEST_BATCH_SIZE);
   let failedBatches = 0;
+  let quotaExhausted = false;
 
-  for (const batch of batches) {
-    try {
-      const batchEntries = await fetchOpenMeteoBatch(batch);
-      result.push(batchEntries);
-    } catch (error) {
-      console.error(error);
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex];
+    let success = false;
+
+    for (let attempt = 0; attempt <= MAX_BATCH_RETRIES; attempt++) {
+      try {
+        const batchEntries = await fetchOpenMeteoBatch(batch);
+        result.push(batchEntries);
+        success = true;
+        break;
+      } catch (error) {
+        const isRateLimited = error.status === 429;
+        const hasRetriesLeft = attempt < MAX_BATCH_RETRIES;
+
+        if (isRateLimited && hasRetriesLeft) {
+          const retryDelay = RETRY_BASE_DELAY_MS * (attempt + 1);
+          console.warn(
+            `Open-Meteo 429 on batch ${batchIndex + 1}/${batches.length}, ` +
+            `retry ${attempt + 1}/${MAX_BATCH_RETRIES} in ${retryDelay}ms`
+          );
+          await sleep(retryDelay);
+        } else {
+          if (isRateLimited) quotaExhausted = true;
+          console.error(
+            `Open-Meteo batch ${batchIndex + 1}/${batches.length} failed:`,
+            error
+          );
+          break;
+        }
+      }
+    }
+
+    if (!success) {
       failedBatches += 1;
       result.push(batch.map(() => null));
+    }
+
+    // Quota exhausted — fill remaining batches with nulls and stop immediately
+    if (quotaExhausted) {
+      const remaining = batches.slice(batchIndex + 1);
+      if (remaining.length > 0) {
+        console.warn(
+          `Open-Meteo quota esaurita al batch ${batchIndex + 1}/${batches.length}. ` +
+          `Salto i ${remaining.length} batch rimanenti.`
+        );
+        for (const rem of remaining) {
+          failedBatches += 1;
+          result.push(rem.map(() => null));
+        }
+      }
+      break;
+    }
+
+    if (batchIndex < batches.length - 1) {
+      await sleep(BATCH_DELAY_MS);
     }
   }
 
@@ -1369,6 +1619,71 @@ function normalizeWeatherApiForecast(entry) {
     conditionLabel: day.day.condition.text,
     min: day.day.mintemp_c,
     max: day.day.maxtemp_c,
+    unit: "°C"
+  }));
+}
+
+function normalizeYrEntry(payload) {
+  const instant = payload?.properties?.timeseries?.[0]?.data?.instant?.details ?? {};
+  const next1h = payload?.properties?.timeseries?.[0]?.data?.next_1_hours ?? {};
+  const symbol = next1h?.summary?.symbol_code ?? "fair_day";
+  const isDay = !symbol.includes("night");
+  return {
+    temperature: instant.air_temperature ?? null,
+    humidity: instant.relative_humidity ?? null,
+    pressure: instant.air_pressure_at_sea_level ?? null,
+    windSpeed: instant.wind_speed ?? null,
+    weatherCode: null,
+    conditionLabel: symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    isDay,
+    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "m/s" }
+  };
+}
+
+function normalizeYrForecast(payload) {
+  const timeseries = payload?.properties?.timeseries ?? [];
+  const daily = new Map();
+  for (const entry of timeseries) {
+    const date = entry.time.slice(0, 10);
+    if (!daily.has(date)) {
+      daily.set(date, { temps: [], symbol: entry.data?.next_6_hours?.summary?.symbol_code ?? null });
+    }
+    const temp = entry.data?.instant?.details?.air_temperature;
+    if (temp != null) daily.get(date).temps.push(temp);
+  }
+  return Array.from(daily.entries()).slice(0, 5).map(([date, { temps, symbol }]) => ({
+    label: formatForecastDate(date),
+    weatherCode: null,
+    conditionLabel: symbol ? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "–",
+    min: temps.length ? Math.min(...temps) : null,
+    max: temps.length ? Math.max(...temps) : null,
+    unit: "°C"
+  }));
+}
+
+function normalizeVisualCrossingEntry(payload) {
+  const cc = payload?.currentConditions ?? {};
+  const icon = cc.icon ?? "";
+  const isDay = !icon.includes("night") && icon !== "";
+  return {
+    temperature: cc.temp ?? null,
+    humidity: cc.humidity ?? null,
+    pressure: cc.pressure ?? null,
+    windSpeed: cc.windspeed ?? null,
+    weatherCode: null,
+    conditionLabel: cc.conditions ?? "–",
+    isDay,
+    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "km/h" }
+  };
+}
+
+function normalizeVisualCrossingForecast(payload) {
+  return (payload?.days ?? []).slice(0, 5).map((day) => ({
+    label: formatForecastDate(day.datetime),
+    weatherCode: null,
+    conditionLabel: day.conditions ?? "–",
+    min: day.tempmin ?? null,
+    max: day.tempmax ?? null,
     unit: "°C"
   }));
 }
@@ -1531,7 +1846,7 @@ function updateProviderPanel() {
 
 function updateMarkerVisibility() {
   markers.visible = weatherState.showMarkers;
-  selectedMarker.visible = weatherState.showMarkers && Boolean(weatherState.selectedPoint);
+  selectedMarker.visible = Boolean(weatherState.selectedPoint);
 }
 
 function updateToggleButtons() {
@@ -1557,12 +1872,162 @@ function setProviderQuota(providerId, quota) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function tempToRgb(temp) {
+  const stops = [
+    [-30, [20, 0, 180]],
+    [-15, [0, 100, 255]],
+    [0,   [0, 230, 200]],
+    [10,  [80, 255, 60]],
+    [20,  [255, 230, 0]],
+    [30,  [255, 80, 0]],
+    [40,  [200, 0, 0]]
+  ];
+  const t = Math.max(-30, Math.min(40, temp));
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (t <= stops[i + 1][0]) {
+      const f = (t - stops[i][0]) / (stops[i + 1][0] - stops[i][0]);
+      return stops[i][1].map((c, j) => Math.round(c + f * (stops[i + 1][1][j] - c)));
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
+function buildHeatmapCanvas(points) {
+  const W = 512, H = 256;
+  const canvas = heatmapCanvas;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, W, H);
+
+  const valid = points
+    .filter((p) => p.current?.temperature != null)
+    .map((p) => ({ lat: p.lat, lon: p.lon, temp: p.current.temperature }));
+
+  if (valid.length === 0) return;
+
+  const imageData = ctx.createImageData(W, H);
+  const d = imageData.data;
+
+  for (let py = 0; py < H; py++) {
+    const lat = 90 - (py / H) * 180;
+    for (let px = 0; px < W; px++) {
+      const lon = (px / W) * 360 - 180;
+      let num = 0, den = 0;
+      for (const pt of valid) {
+        let dlat = lat - pt.lat;
+        let dlon = lon - pt.lon;
+        if (dlon > 180) dlon -= 360;
+        if (dlon < -180) dlon += 360;
+        const dist2 = dlat * dlat + dlon * dlon;
+        if (dist2 < 0.001) { num = pt.temp; den = 1; break; }
+        const w = 1 / dist2;
+        num += w * pt.temp;
+        den += w;
+      }
+      const temp = den > 0 ? num / den : 0;
+      const [r, g, b] = tempToRgb(temp);
+      const idx = (py * W + px) * 4;
+      d[idx] = r;
+      d[idx + 1] = g;
+      d[idx + 2] = b;
+      d[idx + 3] = 210;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  heatmapTexture.needsUpdate = true;
+}
+
+function updateHeatmap() {
+  if (!weatherState.showHeatmap) return;
+  setTimeout(() => buildHeatmapCanvas(weatherState.points), 0);
+}
+
+let snackbarTimer = null;
+
+function showSnackbar(message, type = "info", duration = 4500) {
+  const el = dom.snackbar;
+  el.textContent = message;
+  el.className = `snackbar${type !== "info" ? ` snackbar-${type}` : ""}`;
+  // Force reflow so the transition fires even when re-showing
+  void el.offsetWidth;
+  el.classList.add("snackbar-visible");
+  clearTimeout(snackbarTimer);
+  snackbarTimer = setTimeout(() => {
+    el.classList.remove("snackbar-visible");
+  }, duration);
+}
+
 function setStatus(message) {
   dom.statusLine.textContent = message;
 }
 
 function getActiveProvider() {
   return PROVIDERS[weatherState.providerId] ?? PROVIDERS.openMeteo;
+}
+
+const WEATHER_CACHE_KEY = `${STORAGE_PREFIX}:weather_v1`;
+const WEATHER_CACHE_MAX_AGE_MS = 25 * 60 * 60 * 1000; // 25h — survives one full cycle
+const WEATHER_SNAPSHOT_KEY = `${STORAGE_PREFIX}:weather_snapshot_v1`;
+
+function saveWeatherCache(points) {
+  try {
+    const payload = {
+      ts: Date.now(),
+      data: points
+        .filter((p) => p.current !== null)
+        .map((p) => ({ lat: p.lat, lon: p.lon, current: p.current }))
+    };
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(payload));
+    localStorage.setItem(WEATHER_SNAPSHOT_KEY, JSON.stringify(payload)); // persistent snapshot, no TTL
+  } catch {
+    // localStorage might be full or unavailable — silently ignore
+  }
+}
+
+function loadWeatherCache() {
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    if (!raw) return null;
+    const payload = JSON.parse(raw);
+    if (!payload?.ts || Date.now() - payload.ts > WEATHER_CACHE_MAX_AGE_MS) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function loadWeatherSnapshot() {
+  try {
+    const raw = localStorage.getItem(WEATHER_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const payload = JSON.parse(raw);
+    return payload?.data ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+function applyCachedWeather(cache) {
+  const byKey = new Map(cache.data.map((d) => [`${d.lat},${d.lon}`, d.current]));
+  weatherState.points.forEach((point) => {
+    const cached = byKey.get(`${point.lat},${point.lon}`);
+    if (cached) {
+      point.current = cached;
+    }
+  });
+  const cacheDate = new Date(cache.ts);
+  const formatted = cacheDate.toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  dom.lastRefresh.textContent = `${formatted} (cache)`;
 }
 
 function loadStoredProviderId() {
@@ -1589,13 +2054,15 @@ async function loadEarthTextures() {
       nightTexture,
       cloudsTexture,
       normalTexture,
-      specularTexture
+      specularTexture,
+      heightTexture
     ] = await Promise.all([
       textureLoader.loadAsync(EARTH_DAY_TEXTURE_URL),
       textureLoader.loadAsync(EARTH_NIGHT_TEXTURE_URL),
       textureLoader.loadAsync(EARTH_CLOUDS_TEXTURE_URL),
       textureLoader.loadAsync(EARTH_NORMAL_TEXTURE_URL),
-      textureLoader.loadAsync(EARTH_SPECULAR_TEXTURE_URL)
+      textureLoader.loadAsync(EARTH_SPECULAR_TEXTURE_URL),
+      textureLoader.loadAsync(EARTH_HEIGHT_TEXTURE_URL)
     ]);
 
     [dayTexture, nightTexture, cloudsTexture].forEach((texture) => {
@@ -1605,10 +2072,15 @@ async function loadEarthTextures() {
     specularTexture.colorSpace = THREE.LinearSRGBColorSpace;
     specularTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
     normalTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    heightTexture.colorSpace = THREE.NoColorSpace;
+    heightTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
     earthMaterial.map = dayTexture;
     earthMaterial.normalMap = normalTexture;
     earthMaterial.roughnessMap = specularTexture;
+    earthMaterial.displacementMap = heightTexture;
+    earthMaterial.displacementScale = 0.10;
+    earthMaterial.displacementBias = -0.02;
     earthMaterial.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <roughnessmap_fragment>',
@@ -1616,7 +2088,8 @@ async function loadEarthTextures() {
         float roughnessFactor = roughness;
         #ifdef USE_ROUGHNESSMAP
           vec4 texelRoughness = texture2D( roughnessMap, vRoughnessMapUv );
-          roughnessFactor *= 1.0 - texelRoughness.g;
+          roughnessFactor *= 1.0 - texelRoughness.g * 0.40;
+          roughnessFactor = max(roughnessFactor, 0.44);
         #endif
         `
       );

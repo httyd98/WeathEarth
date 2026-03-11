@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(npm install)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx vite build --mode development)",
+      "Bash(npx vite build)",
+      "Bash(curl -L --max-time 120 -w \"\\\\nHTTP_CODE:%{http_code}\\\\nSIZE:%{size_download}\" -o /Users/eliaspiga/lavoro/personale/TerraCast/.claude/worktrees/funny-bose/public/textures/earth-topo-bathy.jpg \"https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.3x5400x2700.jpg\")",
+      "Bash(curl -L --max-time 120 -w \"\\\\nHTTP_CODE:%{http_code}\\\\nSIZE:%{size_download}\" -o /tmp/earth-alt-8k.jpg \"https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74218/world.200412.3x8192x4096.jpg\")",
+      "Bash(curl -L --max-time 120 -o /Users/eliaspiga/lavoro/personale/TerraCast/.claude/worktrees/funny-bose/public/textures/earth-height.jpg \"https://raw.githubusercontent.com/turban/webgl-earth/master/images/elev_bump_4k.jpg\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(curl -L --max-time 120 -o /tmp/earth-height-alt.jpg \"https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73771/world.dem.jpg\")",
+      "Read(//private/tmp/**)"
     ]
   }
 }
