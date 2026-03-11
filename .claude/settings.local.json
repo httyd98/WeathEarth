@@ -10,7 +10,8 @@
       "Bash(curl -L --max-time 120 -o /Users/eliaspiga/lavoro/personale/TerraCast/.claude/worktrees/funny-bose/public/textures/earth-height.jpg \"https://raw.githubusercontent.com/turban/webgl-earth/master/images/elev_bump_4k.jpg\")",
       "Bash(echo \"EXIT: $?\")",
       "Bash(curl -L --max-time 120 -o /tmp/earth-height-alt.jpg \"https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73771/world.dem.jpg\")",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "Bash(npm run build)"
     ]
   }
 }

@@ -10,26 +10,6 @@ import {
 } from "./constants.js";
 import { formatForecastDate, capitalize } from "./utils.js";
 
-// Forward declarations — these functions are defined later in this file
-// but are called inside the PROVIDERS object methods
-function normalizeOpenMeteoEntry(entry) {
-  return {
-    temperature: entry.current.temperature_2m,
-    humidity: entry.current.relative_humidity_2m,
-    pressure: entry.current.pressure_msl ?? null,
-    weatherCode: entry.current.weather_code,
-    conditionLabel: WEATHER_CODE_LABELS[entry.current.weather_code] ?? "Condizione non classificata",
-    windSpeed: entry.current.wind_speed_10m,
-    isDay: Boolean(entry.current.is_day),
-    units: {
-      temperature: entry.current_units.temperature_2m,
-      humidity: entry.current_units.relative_humidity_2m,
-      pressure: entry.current_units.pressure_msl ?? "hPa",
-      wind: entry.current_units.wind_speed_10m
-    }
-  };
-}
-
 // fetchOpenMeteoGlobal is imported from weather/api.js — we need a lazy reference to break the circular dep
 // We use a function wrapper to allow late binding
 let _fetchOpenMeteoGlobal = null;

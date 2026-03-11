@@ -65,6 +65,7 @@ export async function fetchOpenMeteoGlobal(points) {
   const batches = chunk(points, REQUEST_BATCH_SIZE);
   let failedBatches = 0;
   let quotaExhausted = false;
+  let consecutiveQuotaFails = 0;
 
   for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
     const batch = batches[batchIndex];
@@ -80,17 +81,22 @@ export async function fetchOpenMeteoGlobal(points) {
         const isRateLimited = error.status === 429;
         const hasRetriesLeft = attempt < MAX_BATCH_RETRIES;
 
-        if (isRateLimited && hasRetriesLeft) {
-          const retryDelay = RETRY_BASE_DELAY_MS * (attempt + 1);
+        if (hasRetriesLeft) {
+          // Retry ALL errors: 429 with backoff, network errors with short delay
+          const retryDelay = isRateLimited
+            ? RETRY_BASE_DELAY_MS * (attempt + 1)
+            : 700;
           console.warn(
-            `Open-Meteo 429 on batch ${batchIndex + 1}/${batches.length}, ` +
+            `Open-Meteo batch ${batchIndex + 1}/${batches.length} ` +
+            `error (${isRateLimited ? "429" : error.message?.slice(0, 40)}), ` +
             `retry ${attempt + 1}/${MAX_BATCH_RETRIES} in ${retryDelay}ms`
           );
           await sleep(retryDelay);
         } else {
-          if (isRateLimited) quotaExhausted = true;
+          if (isRateLimited) consecutiveQuotaFails++;
+          else consecutiveQuotaFails = 0; // reset on non-429 failure
           console.error(
-            `Open-Meteo batch ${batchIndex + 1}/${batches.length} failed:`,
+            `Open-Meteo batch ${batchIndex + 1}/${batches.length} failed permanently:`,
             error
           );
           break;
@@ -101,14 +107,18 @@ export async function fetchOpenMeteoGlobal(points) {
     if (!success) {
       failedBatches += 1;
       result.push(batch.map(() => null));
+    } else {
+      consecutiveQuotaFails = 0;
     }
 
-    // Quota exhausted — fill remaining batches with nulls and stop immediately
-    if (quotaExhausted) {
+    // Only bail out after 2+ consecutive 429-exhausted batches
+    // (single 429 may be transient rate limiting, not quota exhaustion)
+    if (consecutiveQuotaFails >= 2) {
+      quotaExhausted = true;
       const remaining = batches.slice(batchIndex + 1);
       if (remaining.length > 0) {
         console.warn(
-          `Open-Meteo quota esaurita al batch ${batchIndex + 1}/${batches.length}. ` +
+          `Open-Meteo quota esaurita (${consecutiveQuotaFails} fallimenti consecutivi). ` +
           `Salto i ${remaining.length} batch rimanenti.`
         );
         for (const rem of remaining) {

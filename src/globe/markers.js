@@ -115,8 +115,9 @@ export function buildHeatmapCanvas(points) {
         if (dlon > 180) dlon -= 360;
         if (dlon < -180) dlon += 360;
         const dist2 = dlat * dlat + dlon * dlon;
-        if (dist2 < 0.001) { num = pt.temp; den = 1; break; }
-        const w = 1 / dist2;
+        // Gaussian kernel: smooth falloff with σ=18°
+        // w approaches 1 at dist=0, ~0.37 at 18°, ~0.02 at 36°
+        const w = Math.exp(-dist2 / 324); // 324 = 18² = sigma²
         num += w * pt.temp;
         den += w;
       }
@@ -126,7 +127,7 @@ export function buildHeatmapCanvas(points) {
       d[idx] = r;
       d[idx + 1] = g;
       d[idx + 2] = b;
-      d[idx + 3] = 210;
+      d[idx + 3] = 195; // leggermente più trasparente per vedere il globo
     }
   }
 
