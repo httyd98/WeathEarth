@@ -163,6 +163,9 @@ initModeBar({
   },
 });
 
+// Must be declared BEFORE animate() is called to avoid temporal dead zone error
+let _lastFrameTime = performance.now();
+
 animate();
 
 // Event listeners
@@ -302,8 +305,6 @@ window.setInterval(() => {
 window.setInterval(() => {
   refreshGlobalWeather(false, samplePoints, summaryPoints);
 }, REFRESH_INTERVAL_MS);
-
-let _lastFrameTime = performance.now();
 
 function animate() {
   requestAnimationFrame(animate);
