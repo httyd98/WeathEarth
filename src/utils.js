@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { SUMMARY_LATITUDES } from "./constants.js";
+import { weatherState } from "./state.js";
 
 export function latLonToVector3(lat, lon, radius, target) {
   const phi = THREE.MathUtils.degToRad(90 - lat);
@@ -79,7 +80,8 @@ export function formatGeocodingLabel(result) {
 }
 
 export function formatDateTime(date) {
-  return new Intl.DateTimeFormat("it-IT", {
+  const locale = (weatherState.language ?? "it") === "en" ? "en-GB" : "it-IT";
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -90,7 +92,8 @@ export function formatDateTime(date) {
 }
 
 export function formatForecastDate(value) {
-  return new Intl.DateTimeFormat("it-IT", {
+  const locale = (weatherState.language ?? "it") === "en" ? "en-GB" : "it-IT";
+  return new Intl.DateTimeFormat(locale, {
     weekday: "short",
     day: "2-digit",
     month: "2-digit"

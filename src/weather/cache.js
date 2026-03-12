@@ -1,4 +1,4 @@
-import { STORAGE_PREFIX } from "../constants.js";
+import { STORAGE_PREFIX, CACHE_FRESHNESS_MS } from "../constants.js";
 import { weatherState, dom } from "../state.js";
 import { PROVIDERS } from "../providers.js";
 
@@ -63,15 +63,17 @@ export function applyCachedWeather(cache) {
       point.current = cached;
     }
   });
-  const cacheDate = new Date(cache.ts);
-  const formatted = cacheDate.toLocaleString("it-IT", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-  dom.lastRefresh.textContent = `${formatted} (cache)`;
+  // Store the cache timestamp so updateHud() can format it with the current locale
+  weatherState.lastUpdatedAt = new Date(cache.ts);
+}
+
+export function isCacheFresh() {
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    if (!raw) return false;
+    const payload = JSON.parse(raw);
+    return payload?.ts && (Date.now() - payload.ts < CACHE_FRESHNESS_MS);
+  } catch { return false; }
 }
 
 export function loadStoredProviderId() {

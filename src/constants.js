@@ -22,6 +22,7 @@ export const REQUEST_BATCH_SIZE = 150;
 export const BATCH_DELAY_MS = 1500;
 export const MAX_BATCH_RETRIES = 3;
 export const RETRY_BASE_DELAY_MS = 3000;
+export const CACHE_FRESHNESS_MS = 60 * 60 * 1000; // 60 min — skip live fetch if cache is fresh
 export const GLOBE_RADIUS = 4.2;
 export const MARKER_ALTITUDE = 0.16;
 export const BASE_MARKER_RADIUS = 0.034;
@@ -36,6 +37,7 @@ export const STORAGE_PREFIX = "terracast";
 export const SUMMARY_LATITUDES = Array.from({ length: 9 }, (_, index) => 80 - index * 20);
 export const SUMMARY_LONGITUDES = Array.from({ length: 18 }, (_, index) => -180 + index * 20);
 
+/** @deprecated Use getWeatherCodeLabel() from i18n.js instead — supports multiple languages. */
 export const WEATHER_CODE_LABELS = {
   0: "Sereno",
   1: "Quasi sereno",

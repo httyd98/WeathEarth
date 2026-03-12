@@ -10,14 +10,17 @@ import {
 import { weatherState, dom } from "../state.js";
 import { chunk, sleep, formatGeocodingLabel, formatLocationName } from "../utils.js";
 import { PROVIDERS, normalizeOpenMeteoEntry } from "../providers.js";
+import { t } from "../i18n.js";
 import { updateMarkerMeshes, updateHeatmap } from "../globe/markers.js";
 import { updateCloudLayer } from "../globe/cloudLayer.js";
+import { updatePrecipitationLayer } from "../globe/precipitationLayer.js";
 import { applyLightingMode } from "../globe/lighting.js";
 import {
   saveWeatherCache,
   loadWeatherCache,
   loadWeatherSnapshot,
   applyCachedWeather,
+  isCacheFresh,
   getStoredApiKey,
   storeApiKey,
   storeProviderId,
@@ -46,7 +49,7 @@ export async function fetchOpenMeteoBatch(points) {
   url.searchParams.set("longitude", longitude);
   url.searchParams.set(
     "current",
-    "temperature_2m,relative_humidity_2m,pressure_msl,weather_code,wind_speed_10m,is_day,cloud_cover"
+    "temperature_2m,relative_humidity_2m,pressure_msl,weather_code,wind_speed_10m,is_day,cloud_cover,precipitation"
   );
   url.searchParams.set("timezone", "GMT");
 
@@ -54,6 +57,14 @@ export async function fetchOpenMeteoBatch(points) {
   if (!response.ok) {
     const error = new Error(`Open-Meteo batch request failed: ${response.status}`);
     error.status = response.status;
+    if (response.status === 429) {
+      try {
+        const body = await response.json();
+        error.reason = body?.reason ?? "Rate limit exceeded";
+      } catch {
+        error.reason = "Rate limit exceeded";
+      }
+    }
     throw error;
   }
 
@@ -91,9 +102,12 @@ export async function fetchOpenMeteoGlobal(points) {
           const retryDelay = isRateLimited
             ? RETRY_BASE_DELAY_MS * (attempt + 1)
             : 700;
+          const errorDetail = isRateLimited
+            ? `429: ${error.reason ?? "rate limited"}`
+            : error.message?.slice(0, 40);
           console.warn(
             `Open-Meteo batch ${batchIndex + 1}/${batches.length} ` +
-            `error (${isRateLimited ? "429" : error.message?.slice(0, 40)}), ` +
+            `error (${errorDetail}), ` +
             `retry ${attempt + 1}/${MAX_BATCH_RETRIES} in ${retryDelay}ms`
           );
           await sleep(retryDelay);
@@ -212,18 +226,45 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
       updateMarkerMeshes();
       updateHeatmap();
       updateCloudLayer();
+      updatePrecipitationLayer();
       updateHud();
       const source = cache ? "cache" : "snapshot";
-      setStatus(`Dati locali (${source}) caricati. Aggiornamento live in corso…`);
+      setStatus(t("status.cacheLoaded", { source }));
     } else {
       setStatus(
         weatherState.showMarkers
-          ? "Primo avvio — caricamento dati globali…"
-          : "Primo avvio — caricamento riepilogo…"
+          ? t("status.firstLoad")
+          : t("status.firstLoadSummary")
       );
     }
   } else {
-    setStatus("Aggiornamento dati live in corso…");
+    setStatus(t("status.updating"));
+  }
+
+  // ── Freshness gate ──────────────────────────────────────────────────
+  // Skip only if cache is fresh AND data is substantially complete (≥95%).
+  // If a previous load was rate-limited and left gaps, fill them even when fresh.
+  const pointsWithData = weatherState.points.filter(p => p.current !== null).length;
+  const isDataComplete = pointsWithData >= weatherState.points.length * 0.95;
+
+  if (!forceStatus && hasDataInMemory && isCacheFresh() && isDataComplete) {
+    weatherState.nextRefreshAt = new Date(Date.now() + REFRESH_INTERVAL_MS);
+    setStatus(t("status.fresh"));
+    return;
+  }
+
+  // Partial-refresh mode: cache timestamp is still valid but some points are missing.
+  // Only fetch the missing coordinates to avoid re-downloading everything.
+  const missingIndices = (!forceStatus && hasDataInMemory && isCacheFresh() && !isDataComplete)
+    ? weatherState.points.map((p, i) => (p.current ? null : i)).filter(i => i !== null)
+    : null;
+
+  const pointsToFetch = missingIndices
+    ? missingIndices.map(i => samplePoints[i])
+    : samplePoints;
+
+  if (missingIndices) {
+    setStatus(t("status.fetchingMissing", { count: missingIndices.length }));
   }
 
   // ── Phase 2: Fetch live data ────────────────────────────────────────
@@ -234,7 +275,7 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
       weatherState.lastUpdatedAt = new Date();
       weatherState.nextRefreshAt = new Date(Date.now() + REFRESH_INTERVAL_MS);
       updateHud();
-      setStatus("Riepilogo globale aggiornato.");
+      setStatus(t("status.summaryUpdated"));
       return;
     }
 
@@ -245,15 +286,17 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
     const apiKey = getStoredApiKey(activeProvider.id);
 
     if (!activeProvider.supportsGlobal && activeProvider.id !== PROVIDERS.openMeteo.id) {
-      setStatus(`Dati globali via Open-Meteo (${activeProvider.name} non supporta batch). Caricamento live…`);
+      setStatus(t("status.globalNotSupported", { provider: activeProvider.name }));
     }
 
-    const { entries, quota, failedBatches = 0 } = await globalProvider.fetchGlobal(samplePoints, apiKey);
+    const { entries, quota, failedBatches = 0 } = await globalProvider.fetchGlobal(pointsToFetch, apiKey);
 
     let updatedCount = 0;
-    entries.forEach((entry, index) => {
+    entries.forEach((entry, fetchIndex) => {
       if (!entry) return;
-      weatherState.points[index].current = entry;
+      // Map back: if partial refresh, fetchIndex → missingIndices[fetchIndex]; else 1:1
+      const globalIndex = missingIndices ? missingIndices[fetchIndex] : fetchIndex;
+      weatherState.points[globalIndex].current = entry;
       updatedCount += 1;
     });
     weatherState.summaryStats = null;
@@ -267,7 +310,7 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
     }
 
     if (updatedCount === 0 && failedBatches > 0) {
-      throw new Error(`Tutti i ${failedBatches} batch Open-Meteo falliti (errori di rete)`);
+      throw new Error(t("status.allBatchesFailed", { count: failedBatches }));
     }
 
     // ── Phase 3: Live data succeeded — save + update visualizations ───
@@ -277,20 +320,17 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
     updateMarkerMeshes();
     updateHeatmap();
     updateCloudLayer();
+    updatePrecipitationLayer();
     updateHud();
 
     if (forceStatus) {
-      setStatus(`Feed globale aggiornato (${updatedCount} punti live via ${globalProvider.name}).`);
+      setStatus(t("status.feedUpdated", { count: updatedCount, provider: globalProvider.name }));
     } else if (failedBatches > 0) {
-      setStatus(
-        `Aggiornamento parziale: ${updatedCount}/${samplePoints.length} punti via ${globalProvider.name}.`
-      );
+      setStatus(t("status.partialUpdate", { count: updatedCount, total: pointsToFetch.length, provider: globalProvider.name }));
     } else if (globalProvider.id !== activeProvider.id) {
-      setStatus(
-        `Dati globali live via ${globalProvider.name}. Dettaglio locale via ${activeProvider.name}.`
-      );
+      setStatus(t("status.dualProvider", { globalProvider: globalProvider.name, localProvider: activeProvider.name }));
     } else {
-      setStatus(`Feed globale sincronizzato (${updatedCount} punti via ${globalProvider.name}).`);
+      setStatus(t("status.feedSynced", { count: updatedCount, provider: globalProvider.name }));
     }
   } catch (error) {
     console.error("refreshGlobalWeather live fetch failed:", error);
@@ -301,9 +341,10 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
     const stillHasData = weatherState.points.some((p) => p.current !== null);
 
     if (stillHasData) {
+      const quotaReason = error?.reason ?? "quota exhausted";
       const reason = isQuota
-        ? "Quota Open-Meteo esaurita. Dati precedenti mantenuti."
-        : "Errore di rete. Dati precedenti mantenuti.";
+        ? t("status.quotaExhausted", { reason: quotaReason })
+        : t("status.networkError");
       setStatus(reason);
       if (forceStatus) showSnackbar(reason, "warn");
     } else {
@@ -317,16 +358,19 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
         updateMarkerMeshes();
         updateHeatmap();
         updateCloudLayer();
+        updatePrecipitationLayer();
         updateHud();
+        const quotaReason = error?.reason ?? "quota exhausted";
         const reason = isQuota
-          ? "Quota Open-Meteo esaurita. Dati dalla cache."
-          : "Errore di rete. Dati dalla cache.";
+          ? t("status.quotaCache", { reason: quotaReason })
+          : t("status.networkCache");
         setStatus(reason);
         if (forceStatus) showSnackbar(reason, "warn");
       } else {
+        const quotaReason = error?.reason ?? "quota exhausted";
         const reason = isQuota
-          ? "Quota Open-Meteo esaurita. Nessun dato disponibile. Riprova dopo mezzanotte UTC."
-          : "Errore di rete. Nessun dato disponibile.";
+          ? t("status.quotaNoData", { reason: quotaReason })
+          : t("status.networkNoData");
         setStatus(reason);
         if (forceStatus) showSnackbar(reason, "error");
       }
@@ -347,9 +391,9 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
     activeProvider = PROVIDERS.openMeteo;
     apiKey = "";
     setProviderQuota(requestedProvider.id, {
-      note: `Chiave API non configurata per ${requestedProvider.name}. Dettaglio locale via Open-Meteo. Inserisci la chiave nel pannello Provider.`
+      note: t("status.keyMissingNote", { provider: requestedProvider.name })
     });
-    setStatus(`Chiave API assente per ${requestedProvider.name} — uso Open-Meteo come fallback.`);
+    setStatus(t("status.keyMissing", { provider: requestedProvider.name }));
   }
 
   const requestToken = ++weatherState.selectionRequestToken;
@@ -358,7 +402,7 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
   weatherState.selectedPoint.providerName = activeProvider.name;
   updateSelectionPanel();
   renderForecastLoading();
-  setStatus(`Caricamento meteo puntuale tramite ${activeProvider.name}...`);
+  setStatus(t("status.loadingPoint", { provider: activeProvider.name }));
 
   try {
     const [currentResult, forecastResult] = await Promise.allSettled([
@@ -405,8 +449,8 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
 
     setStatus(
       forceStatus
-        ? `Dettaglio locale aggiornato tramite ${activeProvider.name}.`
-        : `Punto selezionato aggiornato tramite ${activeProvider.name}.`
+        ? t("status.pointUpdated", { provider: activeProvider.name })
+        : t("status.pointSelected", { provider: activeProvider.name })
     );
   } catch (error) {
     console.error(`[${activeProvider.name}] fetchCurrent/fetchForecast failed:`, error);
@@ -415,15 +459,15 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
       const primaryErrorStatus = error?.status ?? 0;
       let primaryErrorNote;
       if (primaryErrorStatus === 401 || primaryErrorStatus === 403) {
-        primaryErrorNote = `Chiave API non valida o non autorizzata per ${activeProvider.name}. Verifica la chiave nel pannello Provider.`;
+        primaryErrorNote = t("status.keyInvalid", { provider: activeProvider.name });
       } else if (primaryErrorStatus === 429) {
-        primaryErrorNote = `Quota ${activeProvider.name} esaurita. Riprova più tardi.`;
+        primaryErrorNote = t("status.providerQuotaExhausted", { provider: activeProvider.name });
       } else if (primaryErrorStatus >= 500) {
-        primaryErrorNote = `Servizio ${activeProvider.name} temporaneamente non disponibile (errore ${primaryErrorStatus}).`;
+        primaryErrorNote = t("status.providerUnavailable", { provider: activeProvider.name, status: primaryErrorStatus });
       } else if (primaryErrorStatus === 404) {
-        primaryErrorNote = `Dati non disponibili per questa località tramite ${activeProvider.name}.`;
+        primaryErrorNote = t("status.providerNoData", { provider: activeProvider.name });
       } else {
-        primaryErrorNote = `Errore nel caricamento meteo locale tramite ${activeProvider.name}.`;
+        primaryErrorNote = t("status.providerError", { provider: activeProvider.name });
       }
       try {
         const fallback = PROVIDERS.openMeteo;
@@ -453,7 +497,7 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
         setProviderQuota(fallback.id, quota ?? { note: fallback.quotaNote });
         updateSelectionPanel();
         renderForecast(forecast);
-        setStatus(`${activeProvider.name} non disponibile — dati locali via ${fallback.name}.`);
+        setStatus(t("status.fallback", { provider: activeProvider.name, fallback: fallback.name }));
         return;
       } catch (fallbackError) {
         console.error("[Open-Meteo fallback] failed:", fallbackError);
@@ -465,11 +509,11 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
         renderForecast([]);
         let fallbackMsg;
         if (fallbackErrorStatus === 429) {
-          fallbackMsg = `Quota ${PROVIDERS.openMeteo.name} esaurita. Riprova più tardi.`;
+          fallbackMsg = t("status.fallbackQuotaExhausted", { provider: PROVIDERS.openMeteo.name });
         } else if (fallbackErrorStatus >= 500) {
-          fallbackMsg = `Servizio ${PROVIDERS.openMeteo.name} temporaneamente non disponibile (errore ${fallbackErrorStatus}).`;
+          fallbackMsg = t("status.fallbackUnavailable", { provider: PROVIDERS.openMeteo.name, status: fallbackErrorStatus });
         } else {
-          fallbackMsg = `Errore nel caricamento meteo locale tramite ${PROVIDERS.openMeteo.name}.`;
+          fallbackMsg = t("status.fallbackError", { provider: PROVIDERS.openMeteo.name });
         }
         setStatus(`${primaryErrorNote} Fallback: ${fallbackMsg}`);
         return;
@@ -485,15 +529,15 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
     const errorStatus = error?.status ?? 0;
     let errorMsg;
     if (errorStatus === 401 || errorStatus === 403) {
-      errorMsg = `Chiave API non valida o non autorizzata per ${activeProvider.name}. Verifica la chiave nel pannello Provider.`;
+      errorMsg = t("status.keyInvalid", { provider: activeProvider.name });
     } else if (errorStatus === 429) {
-      errorMsg = `Quota ${activeProvider.name} esaurita. Riprova più tardi.`;
+      errorMsg = t("status.providerQuotaExhausted", { provider: activeProvider.name });
     } else if (errorStatus >= 500) {
-      errorMsg = `Servizio ${activeProvider.name} temporaneamente non disponibile (errore ${errorStatus}).`;
+      errorMsg = t("status.providerUnavailable", { provider: activeProvider.name, status: errorStatus });
     } else if (errorStatus === 404) {
-      errorMsg = `Dati non disponibili per questa località tramite ${activeProvider.name}.`;
+      errorMsg = t("status.providerNoData", { provider: activeProvider.name });
     } else {
-      errorMsg = `Errore nel caricamento meteo locale tramite ${activeProvider.name}.`;
+      errorMsg = t("status.providerError", { provider: activeProvider.name });
     }
     setStatus(errorMsg);
   }
@@ -520,7 +564,7 @@ export function clearSelection() {
   updateSelectedMarkerFromSelection();
   resetSelectionPanel();
   renderForecast([]);
-  setStatus("Selezione rimossa.");
+  setStatus(t("status.selectionRemoved"));
 }
 
 // updateSelectedMarker is called via import in main.js to avoid circular deps
@@ -537,7 +581,7 @@ export async function geocodeLocation(query) {
   const url = new URL(OPEN_METEO_GEOCODING_ENDPOINT);
   url.searchParams.set("name", query);
   url.searchParams.set("count", "1");
-  url.searchParams.set("language", "it");
+  url.searchParams.set("language", weatherState.language ?? "it");
   url.searchParams.set("format", "json");
 
   const response = await fetch(url);
@@ -558,12 +602,12 @@ export async function handleSearchSubmit(event) {
   }
 
   dom.searchInput.disabled = true;
-  setStatus(`Ricerca località: ${query}...`);
+  setStatus(t("status.searchingLocation", { query }));
 
   try {
     const result = await geocodeLocation(query);
     if (!result) {
-      setStatus("Località non trovata.");
+      setStatus(t("status.locationNotFound"));
       return;
     }
 
@@ -574,7 +618,7 @@ export async function handleSearchSubmit(event) {
     });
   } catch (error) {
     console.error(error);
-    setStatus("Errore durante la ricerca della località.");
+    setStatus(t("status.searchError"));
   } finally {
     dom.searchInput.disabled = false;
   }
@@ -583,14 +627,14 @@ export async function handleSearchSubmit(event) {
 export async function requestCurrentLocationSelection(forceStatus) {
   if (!("geolocation" in navigator)) {
     if (forceStatus) {
-      setStatus("Geolocalizzazione non supportata dal browser.");
+      setStatus(t("status.geoNotSupported"));
     }
     return;
   }
 
   dom.locateMeButton.disabled = true;
   if (forceStatus) {
-    setStatus("Richiesta posizione attuale al browser...");
+    setStatus(t("status.geoRequesting"));
   }
 
   navigator.geolocation.getCurrentPosition(
@@ -599,13 +643,13 @@ export async function requestCurrentLocationSelection(forceStatus) {
       selectLocation({
         lat: position.coords.latitude,
         lon: position.coords.longitude,
-        label: "Posizione attuale"
+        label: t("status.currentPosition")
       });
     },
     (error) => {
       dom.locateMeButton.disabled = false;
       if (forceStatus) {
-        setStatus(`Geolocalizzazione non disponibile: ${error.message}`);
+        setStatus(t("status.geoError", { message: error.message }));
       }
     },
     {

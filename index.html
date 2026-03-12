@@ -1,264 +1,415 @@
 <!doctype html>
 <html lang="it">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    />
-    <title>TerraCast</title>
-    <meta
-      name="description"
-      content="Globo 3D con meteo globale, selezione puntuale, geolocalizzazione e provider multipli."
-    />
-    <script type="module" src="/src/main.js"></script>
-  </head>
-  <body>
-    <div class="app-shell">
-      <div id="scene-root" aria-label="Globo 3D con dati meteo globali"></div>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>TerraCast</title>
+		<meta
+			name="description"
+			content="Globo 3D con meteo globale, selezione puntuale, geolocalizzazione e provider multipli."
+		/>
+		<script type="module" src="/src/main.js"></script>
+	</head>
+	<body>
+		<div class="app-shell">
+			<div
+				id="scene-root"
+				aria-label="Globo 3D con dati meteo globali"
+				data-i18n-aria-label="meta.description"
+			></div>
 
-      <aside class="hud">
-        <div class="panel brand-panel">
-          <p class="eyebrow">Global Weather Observatory</p>
-          <h1>TerraCast</h1>
-          <p class="lede">
-            Condizioni meteo globali in tempo quasi reale, con selezione puntuale
-            sul globo, ricerca località e geolocalizzazione browser.
-          </p>
-          <div class="chips">
-            <span class="chip">Drag per orbitare</span>
-            <span class="chip">Click per selezionare</span>
-            <span class="chip">Rotella per zoom</span>
-          </div>
-        </div>
+			<aside class="hud">
+				<div class="panel brand-panel">
+					<p class="eyebrow" data-i18n="brand.eyebrow">
+						Global Weather Observatory
+					</p>
+					<h1>TerraCast</h1>
+					<p class="lede" data-i18n="brand.lede">
+						Condizioni meteo globali in tempo quasi reale, con
+						selezione puntuale sul globo, ricerca località e
+						geolocalizzazione browser.
+					</p>
+					<div class="chips">
+						<span class="chip" data-i18n="chip.drag"
+							>Drag per orbitare</span
+						>
+						<span class="chip" data-i18n="chip.click"
+							>Click per selezionare</span
+						>
+						<span class="chip" data-i18n="chip.scroll"
+							>Rotella per zoom</span
+						>
+					</div>
+				</div>
 
-        <div class="panel metrics-panel">
-          <div class="metrics-grid">
-            <div>
-              <p class="label">Ultimo refresh</p>
-              <p id="last-refresh" class="value">In attesa...</p>
-            </div>
-            <div>
-              <p class="label">Prossimo refresh</p>
-              <p id="next-refresh" class="value">-</p>
-            </div>
-            <div>
-              <p class="label">Punti meteo</p>
-              <p id="station-count" class="value">0</p>
-            </div>
-            <div>
-              <p class="label">Temperatura media</p>
-              <p id="avg-temp" class="value">-</p>
-            </div>
-          </div>
-          <div class="actions">
-            <p id="status-line" class="status-line">Connessione ai feed pubblici...</p>
-          </div>
-        </div>
+				<div class="panel metrics-panel">
+					<div class="metrics-grid">
+						<div>
+							<p class="label" data-i18n="metrics.lastRefresh">
+								Ultimo refresh
+							</p>
+							<p id="last-refresh" class="value">In attesa...</p>
+						</div>
+						<div>
+							<p class="label" data-i18n="metrics.nextRefresh">
+								Prossimo refresh
+							</p>
+							<p id="next-refresh" class="value">-</p>
+						</div>
+						<div>
+							<p class="label" data-i18n="metrics.stations">
+								Punti meteo
+							</p>
+							<p id="station-count" class="value">0</p>
+						</div>
+						<div>
+							<p class="label" data-i18n="metrics.avgTemp">
+								Temperatura media
+							</p>
+							<p id="avg-temp" class="value">-</p>
+						</div>
+					</div>
+					<div class="actions">
+						<p id="status-line" class="status-line">
+							Connessione ai feed pubblici...
+						</p>
+					</div>
+				</div>
 
-        <div class="panel details-panel">
-          <div class="section-heading">
-            <p class="eyebrow">Punto selezionato</p>
-            <p id="selection-name" class="section-title">Nessun punto selezionato</p>
-          </div>
-          <dl class="details-grid">
-            <div>
-              <dt>Condizione</dt>
-              <dd id="selection-condition">-</dd>
-            </div>
-            <div>
-              <dt>Temperatura</dt>
-              <dd id="selection-temperature">-</dd>
-            </div>
-            <div>
-              <dt>Vento</dt>
-              <dd id="selection-wind">-</dd>
-            </div>
-            <div>
-              <dt>Umidità</dt>
-              <dd id="selection-humidity">-</dd>
-            </div>
-            <div>
-              <dt>Copertura nuvole</dt>
-              <dd id="selection-cloud-cover">-</dd>
-            </div>
-            <div>
-              <dt>Pressione</dt>
-              <dd id="selection-pressure">-</dd>
-            </div>
-            <div>
-              <dt>Coordinate</dt>
-              <dd id="selection-coordinates">-</dd>
-            </div>
-            <div>
-              <dt>Fase solare</dt>
-              <dd id="selection-daylight">-</dd>
-            </div>
-            <div>
-              <dt>Provider</dt>
-              <dd id="selection-provider">-</dd>
-            </div>
-          </dl>
-        </div>
+				<div class="panel details-panel">
+					<div class="section-heading">
+						<p class="eyebrow" data-i18n="selection.eyebrow">
+							Punto selezionato
+						</p>
+						<p id="selection-name" class="section-title">
+							Nessun punto selezionato
+						</p>
+					</div>
+					<dl class="details-grid">
+						<div>
+							<dt data-i18n="selection.condition">Condizione</dt>
+							<dd id="selection-condition">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.temperature">
+								Temperatura
+							</dt>
+							<dd id="selection-temperature">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.wind">Vento</dt>
+							<dd id="selection-wind">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.humidity">Umidità</dt>
+							<dd id="selection-humidity">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.cloudCover">
+								Copertura nuvole
+							</dt>
+							<dd id="selection-cloud-cover">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.precipitation">
+								Precipitazioni
+							</dt>
+							<dd id="selection-precipitation">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.pressure">Pressione</dt>
+							<dd id="selection-pressure">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.coordinates">
+								Coordinate
+							</dt>
+							<dd id="selection-coordinates">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.daylight">Fase solare</dt>
+							<dd id="selection-daylight">-</dd>
+						</div>
+						<div>
+							<dt data-i18n="selection.provider">Provider</dt>
+							<dd id="selection-provider">-</dd>
+						</div>
+					</dl>
+				</div>
 
-        <div class="panel forecast-panel">
-          <div class="section-heading">
-            <p class="eyebrow">Previsioni</p>
-            <p class="section-title">Località selezionata</p>
-          </div>
-          <div id="forecast-list" class="forecast-list">
-            <p class="provider-note">Seleziona una località per vedere le previsioni.</p>
-          </div>
-        </div>
+				<div class="panel forecast-panel">
+					<div class="section-heading">
+						<p class="eyebrow" data-i18n="forecast.eyebrow">
+							Previsioni
+						</p>
+						<p class="section-title" data-i18n="forecast.title">
+							Località selezionata
+						</p>
+					</div>
+					<div id="forecast-list" class="forecast-list">
+						<p class="provider-note" data-i18n="forecast.empty">
+							Seleziona una località per vedere le previsioni.
+						</p>
+					</div>
+				</div>
 
-        <div class="panel legend-panel">
-          <div class="section-heading">
-            <p class="eyebrow">Legenda</p>
-            <p class="section-title">Temperatura dei marker</p>
-          </div>
-          <div class="legend-bar" aria-hidden="true"></div>
-          <div class="legend-scale">
-            <span>-25°C</span>
-            <span>0°C</span>
-            <span>20°C</span>
-            <span>40°C</span>
-          </div>
-          <p class="footnote">
-            I marker globali vengono campionati su tutto il pianeta. Il punto
-            selezionato usa il provider locale attivo e si aggiorna solo con
-            click, non con il drag.
-          </p>
-        </div>
-      </aside>
+				<div class="panel legend-panel">
+					<div class="section-heading">
+						<p class="eyebrow" data-i18n="legend.eyebrow">
+							Legenda
+						</p>
+						<p class="section-title" data-i18n="legend.title">
+							Temperatura dei marker
+						</p>
+					</div>
+					<div class="legend-bar" aria-hidden="true"></div>
+					<div class="legend-scale">
+						<span>-25°C</span>
+						<span>0°C</span>
+						<span>20°C</span>
+						<span>40°C</span>
+					</div>
+					<p class="footnote" data-i18n="legend.footnote">
+						I marker globali vengono campionati su tutto il pianeta.
+						Il punto selezionato usa il provider locale attivo e si
+						aggiorna solo con click, non con il drag.
+					</p>
+				</div>
+			</aside>
 
-      <section class="control-dock panel">
-        <button id="toggle-markers-button" class="secondary-button" type="button">
-          Nascondi punti meteo
-        </button>
-        <button id="toggle-terminator-button" class="secondary-button" type="button">
-          Nascondi giorno/notte
-        </button>
-        <button id="toggle-clouds-button" class="secondary-button" type="button">
-          Nascondi nuvole
-        </button>
-            <button id="toggle-heatmap-button" type="button" class="secondary-button">
-              <span class="button-content">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1464e0"/><stop offset="50%" stop-color="#22dd55"/><stop offset="100%" stop-color="#dd2200"/></linearGradient></defs>
-                  <circle cx="8" cy="8" r="6.5" stroke="url(#hg)"/>
-                  <path d="M4.5 11 Q6 5 8 8 Q10 11 11.5 5" stroke="currentColor" stroke-linecap="round"/>
-                </svg>
-                Heatmap temperatura
-              </span>
-            </button>
-            <button id="toggle-cloud-cover-button" type="button" class="secondary-button">
-              <span class="button-content">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M7.2 17a4.2 4.2 0 1 1 .5-8.4A5.4 5.4 0 0 1 17.9 10.5a3.3 3.3 0 1 1 .1 6.5H7.2Z" fill="currentColor" opacity="0.5"/>
-                  <path d="M5 19a3.5 3.5 0 1 1 .4-7 4.5 4.5 0 0 1 8.5 1.5A2.7 2.7 0 1 1 14 19H5Z" fill="currentColor"/>
-                  <text x="14" y="22" font-size="7" font-weight="bold" fill="currentColor" font-family="sans-serif">%</text>
-                </svg>
-                Copertura nuvole
-              </span>
-            </button>
-            <button id="toggle-language-button" class="secondary-button" type="button">
-              <span class="button-content">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <circle cx="8" cy="8" r="6.5"/>
-                  <path d="M8 1.5C8 1.5 5.5 4 5.5 8s2.5 6.5 2.5 6.5M8 1.5C8 1.5 10.5 4 10.5 8S8 14.5 8 14.5M1.5 8h13"/>
-                </svg>
-                Lingua: Italiano
-              </span>
-            </button>
-      </section>
+			<aside id="right-sidebar" class="right-sidebar collapsed">
+				<button
+					id="sidebar-toggle"
+					class="sidebar-toggle-button"
+					type="button"
+					aria-label="Toggle sidebar"
+				>
+					<span class="sidebar-arrow">&#8250;</span>
+				</button>
 
-      <section id="provider-dock" class="provider-dock panel">
-        <div class="section-heading">
-          <p class="eyebrow">Provider</p>
-          <div class="provider-heading-actions">
-            <p class="section-title">Sorgente meteo attiva</p>
-            <button
-              id="toggle-provider-box-button"
-              class="collapse-button"
-              type="button"
-              aria-label="Comprimi sorgente meteo"
-            >
-              <span aria-hidden="true">▾</span>
-            </button>
-          </div>
-        </div>
-        <div id="provider-dock-content">
-          <label class="label label-block" for="provider-select">Provider</label>
-          <select id="provider-select">
-            <!-- Options are populated dynamically from PROVIDERS in main.js -->
-          </select>
-          <div id="provider-key-group">
-            <label class="label label-block" for="provider-api-key">Chiave API</label>
-            <input
-              id="provider-api-key"
-              type="password"
-              placeholder="Inserisci la chiave se richiesta"
-              autocomplete="off"
-            />
-            <div class="provider-actions">
-              <button id="provider-save-button" type="button">Salva chiave</button>
-            </div>
-          </div>
-          <p id="provider-key-note" class="provider-key-note"></p>
-          <p id="provider-capability" class="provider-note">
-            Open-Meteo gestisce sia layer globale sia dettaglio locale.
-          </p>
-          <dl class="quota-grid">
-            <div>
-              <dt>Quota totale</dt>
-              <dd id="quota-limit">-</dd>
-            </div>
-            <div>
-              <dt>Utilizzate</dt>
-              <dd id="quota-used">-</dd>
-            </div>
-            <div>
-              <dt>Rimanenti</dt>
-              <dd id="quota-remaining">-</dd>
-            </div>
-          </dl>
-          <p id="quota-note" class="provider-note">
-            La quota viene mostrata solo se il provider la espone via API o header.
-          </p>
-        </div>
-      </section>
+				<div class="sidebar-content">
+					<!-- Group 1: Display features -->
+					<div class="panel sidebar-group">
+						<div class="section-heading">
+							<p class="eyebrow" data-i18n="sidebar.display">
+								Visualizzazione
+							</p>
+						</div>
+						<div class="sidebar-buttons">
+							<button
+								id="toggle-markers-button"
+								class="feature-button"
+								type="button"
+							>
+								Nascondi punti meteo
+							</button>
+							<button
+								id="toggle-terminator-button"
+								class="feature-button"
+								type="button"
+							>
+								Nascondi giorno/notte
+							</button>
+							<button
+								id="toggle-heatmap-button"
+								class="feature-button"
+								type="button"
+							>
+								Heatmap temperatura
+							</button>
+						</div>
+					</div>
 
-      <section class="search-dock panel">
-        <div class="section-heading">
-          <p class="eyebrow">Ricerca</p>
-          <p class="section-title">Località o posizione attuale</p>
-        </div>
-        <form id="location-search-form" class="search-form">
-          <div class="search-input-wrap">
-            <button
-              id="locate-me-button"
-              class="location-button"
-              type="button"
-              aria-label="Usa posizione attuale"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.2a2.8 2.8 0 1 1 0-5.6a2.8 2.8 0 0 1 0 5.6Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </button>
-            <input
-              id="location-search"
-              type="search"
-              placeholder="Cerca una città o una località"
-              autocomplete="off"
-            />
-          </div>
-          <button id="location-search-button" type="submit">Cerca</button>
-        </form>
-      </section>
-    </div>
-    <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
-  </body>
+					<!-- Group 2: Weather features -->
+					<div class="panel sidebar-group">
+						<div class="section-heading">
+							<p class="eyebrow" data-i18n="sidebar.weather">
+								Dati Meteo
+							</p>
+						</div>
+						<div class="sidebar-buttons">
+							<div id="cloud-switch" class="cloud-switch">
+								<button
+									data-cloud="off"
+									class="cloud-option active"
+									type="button"
+									data-i18n="clouds.off"
+								>
+									Off
+								</button>
+								<button
+									data-cloud="aesthetic"
+									class="cloud-option"
+									type="button"
+									data-i18n="clouds.aesthetic"
+								>
+									Estetiche
+								</button>
+								<button
+									data-cloud="real"
+									class="cloud-option"
+									type="button"
+									data-i18n="clouds.real"
+								>
+									Reali
+								</button>
+							</div>
+							<button
+								id="toggle-precipitation-button"
+								class="feature-button"
+								type="button"
+							>
+								Precipitazioni
+							</button>
+						</div>
+					</div>
+
+					<!-- Group 3: Settings -->
+					<div class="panel sidebar-group">
+						<div class="section-heading">
+							<p class="eyebrow" data-i18n="settings.eyebrow">
+								Impostazioni
+							</p>
+							<button
+								id="toggle-settings-button"
+								class="collapse-button"
+								type="button"
+								aria-label="Toggle settings"
+							>
+								<span aria-hidden="true">&#9662;</span>
+							</button>
+						</div>
+						<div id="settings-content">
+							<label
+								class="label label-block"
+								for="language-select"
+								data-i18n="settings.language"
+								>Lingua</label
+							>
+							<select id="language-select">
+								<option value="it">Italiano</option>
+								<option value="en">English</option>
+							</select>
+
+							<label
+								class="label label-block"
+								for="provider-select"
+								data-i18n="provider.label"
+								>Provider</label
+							>
+							<select id="provider-select">
+								<!-- Populated dynamically -->
+							</select>
+							<div id="provider-key-group">
+								<label
+									class="label label-block"
+									for="provider-api-key"
+									data-i18n="provider.apiKey"
+									>Chiave API</label
+								>
+								<input
+									id="provider-api-key"
+									type="password"
+									placeholder="Inserisci la chiave se richiesta"
+									autocomplete="off"
+								/>
+								<div class="provider-actions">
+									<button
+										id="provider-save-button"
+										type="button"
+										data-i18n="provider.saveKey"
+									>
+										Salva chiave
+									</button>
+								</div>
+							</div>
+							<p
+								id="provider-key-note"
+								class="provider-key-note"
+							></p>
+							<p
+								id="provider-capability"
+								class="provider-note"
+							></p>
+							<dl class="quota-grid">
+								<div>
+									<dt data-i18n="provider.quotaTotal">
+										Quota totale
+									</dt>
+									<dd id="quota-limit">-</dd>
+								</div>
+								<div>
+									<dt data-i18n="provider.quotaUsed">
+										Utilizzate
+									</dt>
+									<dd id="quota-used">-</dd>
+								</div>
+								<div>
+									<dt data-i18n="provider.quotaRemaining">
+										Rimanenti
+									</dt>
+									<dd id="quota-remaining">-</dd>
+								</div>
+							</dl>
+							<p
+								id="quota-note"
+								class="provider-note"
+								data-i18n="provider.quotaNote"
+							>
+								La quota viene mostrata solo se il provider la
+								espone via API o header.
+							</p>
+						</div>
+					</div>
+				</div>
+			</aside>
+
+			<section class="search-dock panel">
+				<div class="section-heading">
+					<p class="eyebrow" data-i18n="search.eyebrow">Ricerca</p>
+					<p class="section-title" data-i18n="search.title">
+						Località o posizione attuale
+					</p>
+				</div>
+				<form id="location-search-form" class="search-form">
+					<div class="search-input-wrap">
+						<button
+							id="locate-me-button"
+							class="location-button"
+							type="button"
+							aria-label="Usa posizione attuale"
+							data-i18n-aria-label="search.locateMe"
+						>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<path
+									d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.2a2.8 2.8 0 1 1 0-5.6a2.8 2.8 0 0 1 0 5.6Z"
+									fill="currentColor"
+								/>
+							</svg>
+						</button>
+						<input
+							id="location-search"
+							type="search"
+							placeholder="Cerca una città o una località"
+							data-i18n-placeholder="search.placeholder"
+							autocomplete="off"
+						/>
+					</div>
+					<button
+						id="location-search-button"
+						type="submit"
+						data-i18n="search.submit"
+					>
+						Cerca
+					</button>
+				</form>
+			</section>
+		</div>
+		<div
+			id="snackbar"
+			class="snackbar"
+			role="status"
+			aria-live="polite"
+		></div>
+	</body>
 </html>

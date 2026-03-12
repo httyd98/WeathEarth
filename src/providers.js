@@ -6,11 +6,11 @@ import {
   WEATHER_API_FORECAST_ENDPOINT,
   YR_FORECAST_ENDPOINT,
   VISUAL_CROSSING_ENDPOINT,
-  PIRATE_WEATHER_ENDPOINT,
-  WEATHER_CODE_LABELS
+  PIRATE_WEATHER_ENDPOINT
 } from "./constants.js";
 import { formatForecastDate, capitalize } from "./utils.js";
 import { weatherState } from "./state.js";
+import { getWeatherCodeLabel, t } from "./i18n.js";
 
 // Italian translations for Yr.no/Met.no symbol codes
 const YR_SYMBOL_IT = {
@@ -74,9 +74,10 @@ export const PROVIDERS = {
     requiresKey: false,
     keyRequired: false,
     keyOptional: false,
-    keyNote: "Nessuna chiave necessaria. Completamente gratuito.",
+    get keyNote() { return t("provider.note.openMeteo"); },
     supportsGlobal: true,
-    quotaNote: "Quota gratuita non esposta dal provider.",
+    get quotaNote() { return t("quota.free"); },
+    capabilities: { cloudCover: true, precipitation: true },
     async fetchCurrent({ lat, lon }) {
       const url = new URL(OPEN_METEO_FORECAST_ENDPOINT);
       url.searchParams.set("latitude", `${lat}`);
@@ -136,9 +137,10 @@ export const PROVIDERS = {
     requiresKey: true,
     keyRequired: true,
     keyOptional: false,
-    keyNote: "Chiave obbligatoria. Registrati su openweathermap.org (piano gratuito disponibile).",
+    get keyNote() { return t("provider.note.openWeather"); },
     supportsGlobal: false,
-    quotaNote: "Quota non esposta dal provider o non leggibile dal browser.",
+    get quotaNote() { return t("quota.notExposed"); },
+    capabilities: { cloudCover: true, precipitation: true },
     async fetchCurrent({ lat, lon, apiKey }) {
       const url = new URL(OPEN_WEATHER_CURRENT_ENDPOINT);
       url.searchParams.set("lat", `${lat}`);
@@ -184,9 +186,10 @@ export const PROVIDERS = {
     requiresKey: true,
     keyRequired: true,
     keyOptional: false,
-    keyNote: "Chiave obbligatoria. Registrati su weatherapi.com (piano gratuito disponibile).",
+    get keyNote() { return t("provider.note.weatherApi"); },
     supportsGlobal: false,
-    quotaNote: "Quota non esposta dal provider o non leggibile dal browser.",
+    get quotaNote() { return t("quota.notExposed"); },
+    capabilities: { cloudCover: true, precipitation: true },
     async fetchCurrent({ lat, lon, apiKey }) {
       const url = new URL(WEATHER_API_CURRENT_ENDPOINT);
       url.searchParams.set("key", apiKey);
@@ -232,9 +235,10 @@ export const PROVIDERS = {
     requiresKey: false,
     keyRequired: false,
     keyOptional: false,
-    keyNote: "Nessuna chiave necessaria. Rispetta le linee guida d'uso di Met.no.",
+    get keyNote() { return t("provider.note.yr"); },
     supportsGlobal: false,
-    quotaNote: "Quota gratuita, nessuna chiave richiesta. Rispettare le linee guida d'uso di Met.no.",
+    get quotaNote() { return t("quota.yrFree"); },
+    capabilities: { cloudCover: true, precipitation: true },
     async fetchCurrent({ lat, lon }) {
       const url = new URL(YR_FORECAST_ENDPOINT);
       url.searchParams.set("lat", String(Math.round(lat * 10000) / 10000));
@@ -270,9 +274,10 @@ export const PROVIDERS = {
     requiresKey: true,
     keyRequired: true,
     keyOptional: false,
-    keyNote: "Chiave obbligatoria. Registrati su visualcrossing.com (1000 record/giorno gratuiti).",
+    get keyNote() { return t("provider.note.visualCrossing"); },
     supportsGlobal: false,
-    quotaNote: "Quota gratuita: 1000 record/giorno.",
+    get quotaNote() { return t("quota.visualCrossing"); },
+    capabilities: { cloudCover: true, precipitation: true },
     async fetchCurrent({ lat, lon, apiKey }) {
       const lang = weatherState.language ?? 'it';
       const url = `${VISUAL_CROSSING_ENDPOINT}/${lat},${lon}/today?unitGroup=metric&include=current&lang=${lang}&key=${apiKey}&contentType=json`;
@@ -306,9 +311,10 @@ export const PROVIDERS = {
     requiresKey: true,
     keyRequired: true,
     keyOptional: false,
-    keyNote: "Chiave obbligatoria. Gratuita su pirateweather.net (5000 richieste/giorno).",
+    get keyNote() { return t("provider.note.pirateWeather"); },
     supportsGlobal: false,
-    quotaNote: "Quota gratuita: 5000 richieste/giorno.",
+    get quotaNote() { return t("quota.pirateWeather"); },
+    capabilities: { cloudCover: true, precipitation: true },
     async fetchCurrent({ lat, lon, apiKey }) {
       const lang = weatherState.language ?? 'it';
       const url = `${PIRATE_WEATHER_ENDPOINT}/${apiKey}/${lat},${lon}?units=si&lang=${lang}&exclude=minutely,hourly,alerts`;
@@ -348,15 +354,17 @@ export function normalizeOpenMeteoEntry(entry) {
     humidity: entry.current.relative_humidity_2m,
     pressure: entry.current.pressure_msl ?? null,
     weatherCode: entry.current.weather_code,
-    conditionLabel: WEATHER_CODE_LABELS[entry.current.weather_code] ?? "Condizione non classificata",
+    conditionLabel: getWeatherCodeLabel(entry.current.weather_code),
     windSpeed: entry.current.wind_speed_10m,
     cloudCover: entry.current.cloud_cover ?? null,
+    precipitation: entry.current.precipitation ?? 0,
     isDay: Boolean(entry.current.is_day),
     units: {
       temperature: entry.current_units.temperature_2m,
       humidity: entry.current_units.relative_humidity_2m,
       pressure: entry.current_units.pressure_msl ?? "hPa",
-      wind: entry.current_units.wind_speed_10m
+      wind: entry.current_units.wind_speed_10m,
+      precipitation: "mm"
     }
   };
 }
@@ -365,8 +373,7 @@ export function normalizeOpenMeteoForecast(entry) {
   return entry.daily.time.map((time, index) => ({
     label: formatForecastDate(time),
     weatherCode: entry.daily.weather_code[index],
-    conditionLabel:
-      WEATHER_CODE_LABELS[entry.daily.weather_code[index]] ?? "Condizione non classificata",
+    conditionLabel: getWeatherCodeLabel(entry.daily.weather_code[index]),
     min: entry.daily.temperature_2m_min[index],
     max: entry.daily.temperature_2m_max[index],
     unit: entry.daily_units.temperature_2m_max
@@ -379,15 +386,17 @@ export function normalizeOpenWeatherEntry(entry) {
     humidity: entry.main.humidity,
     pressure: entry.main.pressure,
     weatherCode: null,
-    conditionLabel: capitalize(entry.weather?.[0]?.description ?? "Condizione non disponibile"),
+    conditionLabel: capitalize(entry.weather?.[0]?.description ?? t("condition.unavailable")),
     windSpeed: (entry.wind?.speed ?? 0) * 3.6,
     cloudCover: entry.clouds?.all ?? null,
+    precipitation: entry.rain?.["1h"] ?? entry.snow?.["1h"] ?? 0,
     isDay: entry.weather?.[0]?.icon?.includes("d") ?? true,
     units: {
       temperature: "°C",
       humidity: "%",
       pressure: "hPa",
-      wind: "km/h"
+      wind: "km/h",
+      precipitation: "mm"
     }
   };
 }
@@ -413,7 +422,7 @@ export function normalizeOpenWeatherForecast(entry) {
     .map(([dateKey, value]) => ({
       label: formatForecastDate(dateKey),
       weatherCode: null,
-      conditionLabel: capitalize(value.item.weather?.[0]?.description ?? "Condizione non disponibile"),
+      conditionLabel: capitalize(value.item.weather?.[0]?.description ?? t("condition.unavailable")),
       min: value.item.main.temp_min,
       max: value.item.main.temp_max,
       unit: "°C"
@@ -429,12 +438,14 @@ export function normalizeWeatherApiEntry(entry) {
     conditionLabel: entry.current.condition.text,
     windSpeed: entry.current.wind_kph,
     cloudCover: entry.current.cloud ?? null,
+    precipitation: entry.current.precip_mm ?? 0,
     isDay: entry.current.is_day === 1,
     units: {
       temperature: "°C",
       humidity: "%",
       pressure: "hPa",
-      wind: "km/h"
+      wind: "km/h",
+      precipitation: "mm"
     }
   };
 }
@@ -465,8 +476,9 @@ export function normalizeYrEntry(payload) {
       ? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
       : (YR_SYMBOL_IT[symbol] ?? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())),
     cloudCover: instant.cloud_area_fraction ?? null,
+    precipitation: instant.precipitation_amount ?? 0,
     isDay,
-    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "m/s" }
+    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "m/s", precipitation: "mm" }
   };
 }
 
@@ -507,8 +519,9 @@ export function normalizeVisualCrossingEntry(payload) {
     weatherCode: null,
     conditionLabel: cc.conditions ?? "–",
     cloudCover: cc.cloudcover ?? null,
+    precipitation: cc.precip ?? 0,
     isDay,
-    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "km/h" }
+    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "km/h", precipitation: "mm" }
   };
 }
 
@@ -539,8 +552,9 @@ export function normalizePirateWeatherEntry(payload) {
     weatherCode: null,
     conditionLabel,
     cloudCover: c.cloudCover != null ? Math.round(c.cloudCover * 100) : null,
+    precipitation: c.precipIntensity ?? 0,
     isDay,
-    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "km/h" }
+    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "km/h", precipitation: "mm" }
   };
 }
 
@@ -594,7 +608,7 @@ export function parseQuotaFromHeaders(headers) {
     limit: limit ?? "-",
     used: used ?? "-",
     remaining: remaining ?? "-",
-    note: "Quota rilevata dai response header del provider."
+    note: t("quota.fromHeaders")
   };
 }
 

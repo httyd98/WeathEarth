@@ -92,7 +92,7 @@ export const clouds = new THREE.Mesh(
 );
 clouds.renderOrder = 4;
 globeGroup.add(clouds);
-clouds.visible = weatherState.showClouds;
+clouds.visible = weatherState.cloudMode === "aesthetic";
 
 export const heatmapCanvas = document.createElement("canvas");
 heatmapCanvas.width = 512;
@@ -130,6 +130,24 @@ export const cloudCoverMesh = new THREE.Mesh(
 cloudCoverMesh.renderOrder = 5;
 cloudCoverMesh.visible = false;
 globeGroup.add(cloudCoverMesh);
+
+export const precipCanvas = document.createElement("canvas");
+precipCanvas.width = 512;
+precipCanvas.height = 256;
+export const precipTexture = new THREE.CanvasTexture(precipCanvas);
+precipTexture.colorSpace = THREE.SRGBColorSpace;
+export const precipMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.041, 64, 32),
+  new THREE.MeshBasicMaterial({
+    map: precipTexture,
+    transparent: true,
+    opacity: 1.0,
+    depthWrite: false
+  })
+);
+precipMesh.renderOrder = 6;
+precipMesh.visible = false;
+globeGroup.add(precipMesh);
 
 const starField = createStarField();
 scene.add(starField);

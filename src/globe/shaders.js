@@ -12,7 +12,7 @@ export function createTerminatorMaterial() {
       varying vec3 vNormal;
 
       void main() {
-        vNormal = normalize(normalMatrix * normal);
+        vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
@@ -47,7 +47,7 @@ export function createNightLightsMaterial() {
       varying vec2 vUv;
 
       void main() {
-        vNormal = normalize(normalMatrix * normal);
+        vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
         vUv = uv;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }

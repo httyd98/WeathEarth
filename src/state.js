@@ -28,17 +28,19 @@ export const dom = {
   quotaRemaining: document.querySelector("#quota-remaining"),
   quotaNote: document.querySelector("#quota-note"),
   forecastList: document.querySelector("#forecast-list"),
-  providerDock: document.querySelector("#provider-dock"),
-  providerDockContent: document.querySelector("#provider-dock-content"),
   toggleMarkersButton: document.querySelector("#toggle-markers-button"),
   toggleTerminatorButton: document.querySelector("#toggle-terminator-button"),
-  toggleCloudsButton: document.querySelector("#toggle-clouds-button"),
-  toggleProviderBoxButton: document.querySelector("#toggle-provider-box-button"),
-  snackbar: document.querySelector("#snackbar"),
   toggleHeatmapButton: document.querySelector("#toggle-heatmap-button"),
-  toggleLanguageButton: document.querySelector("#toggle-language-button"),
-  toggleCloudCoverButton: document.querySelector("#toggle-cloud-cover-button"),
-  selectionCloudCover: document.querySelector("#selection-cloud-cover")
+  togglePrecipitationButton: document.querySelector("#toggle-precipitation-button"),
+  snackbar: document.querySelector("#snackbar"),
+  sidebarToggle: document.querySelector("#sidebar-toggle"),
+  rightSidebar: document.querySelector("#right-sidebar"),
+  cloudSwitch: document.querySelector("#cloud-switch"),
+  languageSelect: document.querySelector("#language-select"),
+  toggleSettingsButton: document.querySelector("#toggle-settings-button"),
+  settingsContent: document.querySelector("#settings-content"),
+  selectionCloudCover: document.querySelector("#selection-cloud-cover"),
+  selectionPrecipitation: document.querySelector("#selection-precipitation")
 };
 
 // points and providerId are initialized in main.js after all modules are loaded
@@ -56,9 +58,11 @@ export const weatherState = {
   selectionRequestToken: 0,
   showMarkers: true,
   showTerminator: true,
-  showClouds: true,
-  showProviderDock: true,
-  showCloudCover: false,
+  cloudMode: "off",
+  showPrecipitation: false,
+  rightSidebarOpen: false,
+  showSettings: true,
+  globeTargetX: 1.6,
   summaryStats: null,
   lastDistanceForScale: null,
   language: localStorage.getItem('terracast:language') ?? 'it'

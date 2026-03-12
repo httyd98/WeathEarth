@@ -5,17 +5,20 @@ import { weatherState, interactionState, dom } from "./state.js";
 import { CLICK_DISTANCE_THRESHOLD, REFRESH_INTERVAL_MS } from "./constants.js";
 import { buildSamplePoints, buildSummaryPoints, vector3ToLatLon, formatLocationName } from "./utils.js";
 import { PROVIDERS } from "./providers.js";
+import { t, renderAllI18n } from "./i18n.js";
 
 // Globe modules
 import {
   renderer, scene, camera, controls, globeGroup,
-  earth, clouds, heatmapMesh, cloudCoverMesh,
+  earth, clouds, heatmapMesh, cloudCoverMesh, precipMesh,
   pointer, raycaster,
   initMarkers
 } from "./globe/scene.js";
 import { applyLightingMode, updateSunDirection } from "./globe/lighting.js";
 import { updateMarkerMeshes, updateMarkerVisibility, buildHeatmapCanvas, updateSelectedMarker } from "./globe/markers.js";
 import { buildCloudCanvas } from "./globe/cloudLayer.js";
+import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
+import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
 
 // Weather modules
@@ -54,6 +57,7 @@ import {
   renderForecastLoading,
   updateProviderPanel,
   updateToggleButtons,
+  updateFeatureVisibility,
   updateRefreshCountdown,
   setGetActiveProvider,
   setGetStoredApiKey,
@@ -91,10 +95,11 @@ setOnProviderChange(() => {
   // Global data (Open-Meteo batch) is loaded only at page load and by the timer.
   // Provider choice only affects single-point detail queries.
   updateProviderPanel();
+  updateFeatureVisibility();
   setStatus(
     newProvider.supportsGlobal
-      ? `Provider: ${newProvider.name} (layer globale + dettaglio locale).`
-      : `Provider locale: ${newProvider.name}. Dati globali via Open-Meteo.`
+      ? t("status.providerGlobal", { provider: newProvider.name })
+      : t("status.providerLocal", { provider: newProvider.name })
   );
 
   // Refresh the selected point with the new local provider
@@ -123,6 +128,8 @@ updateHud();
 loadEarthTextures();
 updateProviderPanel();
 updateToggleButtons();
+updateFeatureVisibility();
+updateGlobeCenter();
 animate();
 
 // Event listeners
@@ -145,34 +152,88 @@ dom.providerSelect.addEventListener("change", handleProviderChange);
 dom.providerSaveButton.addEventListener("click", handleProviderSave);
 dom.toggleMarkersButton.addEventListener("click", handleToggleMarkers);
 dom.toggleTerminatorButton.addEventListener("click", handleToggleTerminator);
-dom.toggleCloudsButton.addEventListener("click", handleToggleClouds);
-dom.toggleProviderBoxButton.addEventListener("click", handleToggleProviderBox);
+
+// Sidebar toggle
+dom.sidebarToggle.addEventListener("click", () => {
+  weatherState.rightSidebarOpen = !weatherState.rightSidebarOpen;
+  dom.rightSidebar.classList.toggle("collapsed", !weatherState.rightSidebarOpen);
+  updateGlobeCenter();
+});
+
+// Cloud 3-state switch
+document.querySelectorAll("#cloud-switch .cloud-option").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const mode = btn.dataset.cloud;
+    weatherState.cloudMode = mode;
+    clouds.visible = mode === "aesthetic";
+    cloudCoverMesh.visible = mode === "real";
+
+    if (mode === "real") {
+      // Load actual satellite cloud imagery from NASA GIBS
+      setStatus(t("status.satelliteLoading"));
+      loadSatelliteCloudTexture()
+        .then(({ date }) => {
+          setStatus(t("status.satelliteLoaded", { date }));
+        })
+        .catch(() => {
+          // Fallback: IDW interpolation from weather data
+          setStatus(t("status.satelliteError"));
+          setTimeout(() => buildCloudCanvas(weatherState.points), 0);
+        });
+    }
+
+    document.querySelectorAll("#cloud-switch .cloud-option").forEach(b => {
+      b.classList.toggle("active", b.dataset.cloud === mode);
+    });
+  });
+});
+
+// Heatmap toggle
 dom.toggleHeatmapButton?.addEventListener("click", () => {
   weatherState.showHeatmap = !weatherState.showHeatmap;
   heatmapMesh.visible = weatherState.showHeatmap;
   if (weatherState.showHeatmap) {
     setTimeout(() => buildHeatmapCanvas(weatherState.points), 0);
-    dom.toggleHeatmapButton.classList.add("active");
-  } else {
-    dom.toggleHeatmapButton.classList.remove("active");
   }
-});
-dom.toggleCloudCoverButton?.addEventListener("click", () => {
-  weatherState.showCloudCover = !weatherState.showCloudCover;
-  cloudCoverMesh.visible = weatherState.showCloudCover;
-  if (weatherState.showCloudCover) {
-    setTimeout(() => buildCloudCanvas(weatherState.points), 0);
-  }
+  dom.toggleHeatmapButton.classList.toggle("active", weatherState.showHeatmap);
   updateToggleButtons();
 });
-dom.toggleLanguageButton?.addEventListener('click', () => {
-  weatherState.language = weatherState.language === 'it' ? 'en' : 'it';
+
+// Precipitation toggle
+dom.togglePrecipitationButton?.addEventListener("click", () => {
+  weatherState.showPrecipitation = !weatherState.showPrecipitation;
+  precipMesh.visible = weatherState.showPrecipitation;
+  if (weatherState.showPrecipitation) {
+    setTimeout(() => {
+      const hadData = buildPrecipitationCanvas(weatherState.points);
+      if (!hadData) setStatus(t("status.noPrecipitation"));
+    }, 0);
+  }
+  dom.togglePrecipitationButton.classList.toggle("active", weatherState.showPrecipitation);
+  updateToggleButtons();
+});
+
+// Language selector
+dom.languageSelect.value = weatherState.language;
+dom.languageSelect.addEventListener("change", () => {
+  weatherState.language = dom.languageSelect.value;
   localStorage.setItem('terracast:language', weatherState.language);
+  document.documentElement.lang = weatherState.language;
+  renderAllI18n();
   updateToggleButtons();
-  // If there's a selected point, re-fetch to get labels in the new language
+  updateProviderPanel();
+  resetSelectionPanel();
+  updateHud();
   if (weatherState.selectedPoint) {
     refreshSelectedPointWeather(true);
   }
+});
+
+// Settings collapse
+dom.toggleSettingsButton.addEventListener("click", () => {
+  weatherState.showSettings = !weatherState.showSettings;
+  dom.settingsContent.hidden = !weatherState.showSettings;
+  dom.toggleSettingsButton.querySelector("span").textContent = weatherState.showSettings ? "\u25BE" : "\u25B8";
 });
 
 // Initial data fetch
@@ -190,6 +251,11 @@ function animate() {
   requestAnimationFrame(animate);
   updateControlsForZoom();
   clouds.rotation.y += 0.00008;
+  // Smooth globe centering
+  const dx = weatherState.globeTargetX - globeGroup.position.x;
+  if (Math.abs(dx) > 0.001) {
+    globeGroup.position.x += dx * 0.06;
+  }
   controls.update();
   renderer.render(scene, camera);
 }
@@ -198,6 +264,7 @@ function handleResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  updateGlobeCenter();
 }
 
 function handlePointerDown(event) {
@@ -293,14 +360,12 @@ function handleToggleTerminator() {
   updateToggleButtons();
 }
 
-function handleToggleClouds() {
-  weatherState.showClouds = !weatherState.showClouds;
-  clouds.visible = weatherState.showClouds;
-  updateToggleButtons();
-}
-
-function handleToggleProviderBox() {
-  weatherState.showProviderDock = !weatherState.showProviderDock;
-  dom.providerDockContent.hidden = !weatherState.showProviderDock;
-  updateToggleButtons();
+function updateGlobeCenter() {
+  const vw = window.innerWidth;
+  const leftW = Math.min(430, vw);  // left sidebar width
+  const rightW = weatherState.rightSidebarOpen ? Math.min(340, vw) : 44;
+  const center = leftW + (vw - leftW - rightW) / 2;
+  const screenCenter = vw / 2;
+  const offsetPx = center - screenCenter;
+  weatherState.globeTargetX = offsetPx * 0.012;
 }

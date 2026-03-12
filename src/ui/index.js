@@ -1,7 +1,7 @@
 import { weatherState, dom } from "../state.js";
-import { WEATHER_CODE_LABELS } from "../constants.js";
-import { formatCoordinates, formatDateTime, conditionIconMarkup, markerIcon, terminatorIcon, cloudIcon, cloudCoverIcon, buttonMarkup } from "../utils.js";
+import { formatCoordinates, formatDateTime, conditionIconMarkup, markerIcon, terminatorIcon, buttonMarkup } from "../utils.js";
 import { PROVIDERS } from "../providers.js";
+import { t } from "../i18n.js";
 
 let snackbarTimer = null;
 
@@ -44,7 +44,7 @@ export function updateHud() {
     : "-";
   dom.lastRefresh.textContent = weatherState.lastUpdatedAt
     ? formatDateTime(weatherState.lastUpdatedAt)
-    : "In attesa...";
+    : t("metrics.waiting");
   updateRefreshCountdown();
 }
 
@@ -75,13 +75,14 @@ export function updateSelectionPanel() {
   dom.selectionProvider.textContent = point.providerName ?? getActiveProvider().name;
 
   if (!point.current) {
-    dom.selectionCondition.textContent = "In caricamento...";
+    dom.selectionCondition.textContent = t("selection.loading");
     dom.selectionTemperature.textContent = "-";
     dom.selectionWind.textContent = "-";
     dom.selectionHumidity.textContent = "-";
     dom.selectionPressure.textContent = "-";
     dom.selectionDaylight.textContent = "-";
     if (dom.selectionCloudCover) dom.selectionCloudCover.textContent = "-";
+    if (dom.selectionPrecipitation) dom.selectionPrecipitation.textContent = "-";
     return;
   }
 
@@ -95,16 +96,21 @@ export function updateSelectionPanel() {
   dom.selectionPressure.textContent = point.current.pressure !== null
     ? `${point.current.pressure.toFixed(0)} ${point.current.units.pressure}`
     : "-";
-  dom.selectionDaylight.textContent = point.current.isDay ? "Giorno" : "Notte";
+  dom.selectionDaylight.textContent = point.current.isDay ? t("selection.day") : t("selection.night");
   if (dom.selectionCloudCover) {
     dom.selectionCloudCover.textContent = point.current.cloudCover != null
       ? `${point.current.cloudCover.toFixed(0)} %`
       : "-";
   }
+  if (dom.selectionPrecipitation) {
+    dom.selectionPrecipitation.textContent = point.current.precipitation != null
+      ? `${point.current.precipitation.toFixed(1)} mm`
+      : "-";
+  }
 }
 
 export function resetSelectionPanel() {
-  dom.selectionName.textContent = "Nessun punto selezionato";
+  dom.selectionName.textContent = t("selection.none");
   dom.selectionCondition.textContent = "-";
   dom.selectionTemperature.textContent = "-";
   dom.selectionWind.textContent = "-";
@@ -114,6 +120,7 @@ export function resetSelectionPanel() {
   dom.selectionDaylight.textContent = "-";
   dom.selectionProvider.textContent = "-";
   if (dom.selectionCloudCover) dom.selectionCloudCover.textContent = "-";
+  if (dom.selectionPrecipitation) dom.selectionPrecipitation.textContent = "-";
   renderForecast([]);
 }
 
@@ -143,22 +150,22 @@ export function updateProviderPanel() {
 
     if (isOptional) {
       dom.providerApiKey.classList.add('key-state-optional');
-      dom.providerApiKey.placeholder = `Chiave API opzionale per ${provider.name}`;
+      dom.providerApiKey.placeholder = t("provider.apiKeyPlaceholderOptional", { provider: provider.name });
     } else if (!hasKey) {
       // Required but missing
       dom.providerApiKey.classList.add('key-state-required');
-      dom.providerApiKey.placeholder = `Chiave API obbligatoria per ${provider.name}`;
+      dom.providerApiKey.placeholder = t("provider.apiKeyPlaceholderRequired", { provider: provider.name });
     } else {
-      dom.providerApiKey.placeholder = `Chiave API per ${provider.name}`;
+      dom.providerApiKey.placeholder = t("provider.apiKeyPlaceholder", { provider: provider.name });
     }
 
     if (dom.providerKeyNote) dom.providerKeyNote.textContent = provider.keyNote ?? '';
 
     if (keyLabel) {
       keyLabel.style.display = '';
-      keyLabel.textContent = isOptional ? 'Chiave API (opzionale)'
-        : (needsKey && !hasKey) ? 'Chiave API (obbligatoria ⚠)'
-        : 'Chiave API';
+      keyLabel.textContent = isOptional ? t("provider.apiKeyOptional")
+        : (needsKey && !hasKey) ? t("provider.apiKeyRequired")
+        : t("provider.apiKey");
     }
   }
 
@@ -166,51 +173,78 @@ export function updateProviderPanel() {
   dom.providerSaveButton.disabled = !provider.requiresKey;
 
   dom.providerCapability.textContent = provider.supportsGlobal
-    ? `${provider.name} gestisce sia layer globale sia dettaglio locale.`
-    : `${provider.name} gestisce il dettaglio locale. Il layer globale usa ${PROVIDERS.openMeteo.name} come fallback.`;
+    ? t("provider.supportsGlobal", { provider: provider.name })
+    : t("provider.localOnly", { provider: provider.name, fallback: PROVIDERS.openMeteo.name });
 
   const quota = weatherState.providerQuotas[provider.id] ?? { note: provider.quotaNote };
   dom.quotaLimit.textContent = quota.limit ?? "-";
   dom.quotaUsed.textContent = quota.used ?? "-";
   dom.quotaRemaining.textContent = quota.remaining ?? "-";
   dom.quotaNote.textContent = quota.note ?? provider.quotaNote;
-  dom.providerDockContent.hidden = !weatherState.showProviderDock;
 }
 
 export function updateToggleButtons() {
   dom.toggleMarkersButton.innerHTML = buttonMarkup(
     markerIcon(),
-    weatherState.showMarkers ? "Nascondi punti meteo" : "Mostra punti meteo"
+    weatherState.showMarkers ? t("btn.hideMarkers") : t("btn.showMarkers")
   );
+  dom.toggleMarkersButton.classList.toggle("active", weatherState.showMarkers);
+
   dom.toggleTerminatorButton.innerHTML = buttonMarkup(
     terminatorIcon(),
-    weatherState.showTerminator ? "Nascondi giorno/notte" : "Mostra giorno/notte"
+    weatherState.showTerminator ? t("btn.hideTerminator") : t("btn.showTerminator")
   );
-  dom.toggleCloudsButton.innerHTML = buttonMarkup(
-    cloudIcon(),
-    weatherState.showClouds ? "Nascondi nuvole" : "Mostra nuvole"
-  );
-  dom.toggleProviderBoxButton.textContent = weatherState.showProviderDock ? "▾" : "▴";
-  if (dom.toggleCloudCoverButton) {
-    dom.toggleCloudCoverButton.innerHTML = buttonMarkup(
-      cloudCoverIcon(),
-      weatherState.showCloudCover ? "Nascondi copertura nuvole" : "Copertura nuvole"
+  dom.toggleTerminatorButton.classList.toggle("active", weatherState.showTerminator);
+
+  if (dom.toggleHeatmapButton) {
+    dom.toggleHeatmapButton.innerHTML = buttonMarkup(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1464e0"/><stop offset="50%" stop-color="#22dd55"/><stop offset="100%" stop-color="#dd2200"/></linearGradient></defs><circle cx="8" cy="8" r="6.5" stroke="url(#hg)"/><path d="M4.5 11 Q6 5 8 8 Q10 11 11.5 5" stroke="currentColor" stroke-linecap="round"/></svg>`,
+      weatherState.showHeatmap ? t("btn.hideHeatmap") : t("btn.showHeatmap")
     );
-    dom.toggleCloudCoverButton.classList.toggle("active", weatherState.showCloudCover);
   }
-  if (dom.toggleLanguageButton) {
-    const langLabel = weatherState.language === 'it' ? 'Italiano' : 'English';
-    dom.toggleLanguageButton.innerHTML = buttonMarkup(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 1.5C8 1.5 5.5 4 5.5 8s2.5 6.5 2.5 6.5M8 1.5C8 1.5 10.5 4 10.5 8S8 14.5 8 14.5M1.5 8h13"/></svg>`,
-      `Lingua: ${langLabel}`
+
+  if (dom.togglePrecipitationButton) {
+    dom.togglePrecipitationButton.innerHTML = buttonMarkup(
+      `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 15a4 4 0 1 1 .5-8a5.2 5.2 0 0 1 9.8 1.7A3.2 3.2 0 1 1 17.5 15H7Z" fill="currentColor"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+      weatherState.showPrecipitation ? t("btn.hidePrecipitation") : t("btn.precipitation")
     );
+  }
+
+  // Update cloud switch labels with current language
+  document.querySelectorAll("#cloud-switch .cloud-option").forEach(btn => {
+    const key = `clouds.${btn.dataset.cloud}`;
+    btn.textContent = t(key);
+  });
+}
+
+export function updateFeatureVisibility() {
+  const provider = getActiveProvider();
+  const caps = provider.capabilities ?? {};
+
+  // Cloud "real" option — hide if provider doesn't support cloud cover
+  const realOption = document.querySelector('[data-cloud="real"]');
+  if (realOption) {
+    const hasCloudCover = caps.cloudCover !== false; // default true
+    realOption.classList.toggle("hidden", !hasCloudCover);
+    if (!hasCloudCover && weatherState.cloudMode === "real") {
+      weatherState.cloudMode = "off";
+      document.querySelectorAll("#cloud-switch .cloud-option").forEach(b => {
+        b.classList.toggle("active", b.dataset.cloud === "off");
+      });
+    }
+  }
+
+  // Precipitation button
+  if (dom.togglePrecipitationButton) {
+    const hasPrecip = caps.precipitation !== false;
+    dom.togglePrecipitationButton.style.display = hasPrecip ? "" : "none";
   }
 }
 
 export function renderForecast(items) {
   if (!items.length) {
     dom.forecastList.innerHTML =
-      '<p class="provider-note">Seleziona una località per vedere le previsioni.</p>';
+      `<p class="provider-note">${t("forecast.empty")}</p>`;
     return;
   }
 
@@ -233,7 +267,7 @@ export function renderForecast(items) {
 
 export function renderForecastLoading() {
   dom.forecastList.innerHTML =
-    '<p class="provider-note">Caricamento previsioni in corso...</p>';
+    `<p class="provider-note">${t("forecast.loading")}</p>`;
 }
 
 export function updateMarkerVisibility() {
