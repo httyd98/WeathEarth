@@ -42,6 +42,8 @@ export const dom = {
   selectionCloudCover: document.querySelector("#selection-cloud-cover"),
   selectionPrecipitation: document.querySelector("#selection-precipitation"),
   toggleWindButton:    document.querySelector("#toggle-wind-button"),
+  toggleTiltSimpleButton: document.getElementById("toggle-tilt-simple-button"),
+  toggleTiltSeasonalButton: document.getElementById("toggle-tilt-seasonal-button"),
   modeRealtimeBtn:     document.querySelector("#mode-realtime-btn"),
   modeForecastBtn:     document.querySelector("#mode-forecast-btn"),
   modelSelectorRow:    document.querySelector("#model-selector-row"),
@@ -75,6 +77,8 @@ export const weatherState = {
   rightSidebarOpen: false,
   showSettings: true,
   globeTargetX: 1.6,
+  tiltMode: "none",
+  globeTargetTiltZ: 0,
   summaryStats: null,
   lastDistanceForScale: null,
   language: localStorage.getItem('terracast:language') ?? 'it'

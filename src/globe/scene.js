@@ -19,13 +19,13 @@ renderer.toneMappingExposure = 1.6;
 dom.sceneRoot.append(renderer.domElement);
 
 export const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x02040b, 0.009);
+scene.fog = new THREE.FogExp2(0x02040b, 0.003);
 
 export const camera = new THREE.PerspectiveCamera(
   42,
   window.innerWidth / window.innerHeight,
   0.1,
-  150
+  500
 );
 camera.position.set(1.6, 1.5, 12.8);
 
@@ -151,6 +151,21 @@ globeGroup.add(precipMesh);
 
 const starField = createStarField();
 scene.add(starField);
+
+// Equatorial ring — visible when axial tilt is active
+export const equatorialRing = new THREE.Mesh(
+  new THREE.TorusGeometry(GLOBE_RADIUS * 1.05, 0.025, 8, 128),
+  new THREE.MeshBasicMaterial({
+    color: 0x4499ff,
+    transparent: true,
+    opacity: 0.65,
+    depthWrite: false,
+  })
+);
+// Torus by default lies in XY plane; rotate 90° around X to align with equatorial (XZ) plane
+equatorialRing.rotation.x = Math.PI / 2;
+equatorialRing.visible = false;
+globeGroup.add(equatorialRing);
 
 export const markerGeometry = new THREE.SphereGeometry(BASE_MARKER_RADIUS, 12, 12);
 export const markerMaterial = new THREE.MeshBasicMaterial({

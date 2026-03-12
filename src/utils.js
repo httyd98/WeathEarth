@@ -126,33 +126,90 @@ export function createStarField() {
   const geometry = new THREE.BufferGeometry();
   const positions = [];
   const colors = [];
+  const sizes = [];
   const color = new THREE.Color();
 
-  for (let index = 0; index < 2600; index += 1) {
-    const radius = THREE.MathUtils.randFloat(34, 78);
-    const theta = THREE.MathUtils.randFloat(0, Math.PI * 2);
-    const phi = Math.acos(THREE.MathUtils.randFloatSpread(2));
+  // Stellar spectral type distribution (approximate real distribution)
+  // Colors: O=blue, B=blue-white, A=white-blue, F=white, G=yellow-white, K=orange, M=red-orange
+  const SPECTRAL_TYPES = [
+    { maxRand: 0.000003, h: 0.617, s: 0.8, lMin: 0.75, lMax: 0.9  }, // O (blue)
+    { maxRand: 0.0014,   h: 0.622, s: 0.6, lMin: 0.72, lMax: 0.88 }, // B (blue-white)
+    { maxRand: 0.0074,   h: 0.632, s: 0.3, lMin: 0.82, lMax: 0.95 }, // A (white-blue)
+    { maxRand: 0.037,    h: 0.107, s: 0.2, lMin: 0.88, lMax: 0.98 }, // F (white)
+    { maxRand: 0.113,    h: 0.1,   s: 0.4, lMin: 0.82, lMax: 0.95 }, // G (yellow-white)
+    { maxRand: 0.234,    h: 0.08,  s: 0.6, lMin: 0.72, lMax: 0.88 }, // K (orange)
+    { maxRand: 1.0,      h: 0.06,  s: 0.7, lMin: 0.62, lMax: 0.82 }, // M (red-orange, most common)
+  ];
+
+  const STAR_COUNT = 7000;
+
+  for (let i = 0; i < STAR_COUNT; i++) {
+    // Place on sphere at fixed radius (so stars don't zoom-scale strangely)
+    // Use two different radii to give slight depth variation
+    const radius = 70 + Math.random() * 20; // 70-90 units
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+
+    // Slight Milky Way concentration: higher density near galactic equator
+    // Galactic equator is tilted ~60° from celestial equator
+    const galacticWeight = 1 + 1.5 * Math.pow(Math.abs(Math.sin(phi * 0.7 + 0.3)), 2);
+    if (Math.random() > galacticWeight / 2.5) {
+      // Reject some stars outside Milky Way band for concentration effect
+      // (not all rejected, just thinned out)
+    }
+
     const x = radius * Math.sin(phi) * Math.cos(theta);
     const y = radius * Math.cos(phi);
     const z = radius * Math.sin(phi) * Math.sin(theta);
     positions.push(x, y, z);
 
-    color.setHSL(0.58 + Math.random() * 0.1, 0.55, 0.78 + Math.random() * 0.18);
+    // Pick spectral type by cumulative probability
+    const rand = Math.random();
+    let type = SPECTRAL_TYPES[SPECTRAL_TYPES.length - 1];
+    for (const t of SPECTRAL_TYPES) {
+      if (rand <= t.maxRand) { type = t; break; }
+    }
+    const lightness = type.lMin + Math.random() * (type.lMax - type.lMin);
+    color.setHSL(type.h, type.s, lightness);
     colors.push(color.r, color.g, color.b);
+
+    // Size: log-normal distribution so most stars are small, a few are bright/large
+    // Bright stars: size 0.4-1.2, dim stars: size 0.05-0.2
+    const brightness = Math.pow(Math.random(), 3); // heavily skewed toward dim
+    sizes.push(0.05 + brightness * 1.2);
   }
 
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  // Note: THREE.PointsMaterial doesn't support per-vertex size directly without ShaderMaterial.
+  // We use a single size but use alphaMap for softness.
+
+  // Create a soft circular sprite texture for stars
+  const starCanvas = document.createElement("canvas");
+  starCanvas.width = 32;
+  starCanvas.height = 32;
+  const starCtx = starCanvas.getContext("2d");
+  const starGrad = starCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  starGrad.addColorStop(0,   "rgba(255,255,255,1)");
+  starGrad.addColorStop(0.3, "rgba(255,255,255,0.8)");
+  starGrad.addColorStop(0.7, "rgba(255,255,255,0.2)");
+  starGrad.addColorStop(1,   "rgba(255,255,255,0)");
+  starCtx.fillStyle = starGrad;
+  starCtx.fillRect(0, 0, 32, 32);
+  const starTexture = new THREE.CanvasTexture(starCanvas);
 
   return new THREE.Points(
     geometry,
     new THREE.PointsMaterial({
-      size: 0.18,
+      size: 0.22,
       vertexColors: true,
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.92,
       sizeAttenuation: true,
-      depthWrite: false
+      depthWrite: false,
+      fog: false,           // CRITICAL: don't fog the stars
+      alphaMap: starTexture,
+      alphaTest: 0.001,
     })
   );
 }

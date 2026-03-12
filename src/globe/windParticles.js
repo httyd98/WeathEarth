@@ -1,7 +1,7 @@
 /**
  * Wind Particle System
  *
- * Animates 25,000 massless particles advected by a 128×64 IDW wind field
+ * Animates 50,000 massless particles advected by a 128×64 IDW wind field
  * interpolated from weather station data. Particles are displayed as
  * additive-blended points on the sphere surface, colored by wind speed.
  *
@@ -20,7 +20,12 @@ const GRID_H = 64;
 const GRID_SIZE = GRID_W * GRID_H;
 
 // Particle count
-const N = 25_000;
+const N = 50_000;
+
+// VISUAL scale: how many degrees of lat/lon to move per second per m/s of wind speed
+// Physical would be 1/111320 ≈ 0.000009, but that's invisible.
+// Use 0.4 degrees/s per m/s for a visible, comprehensible effect.
+const VIS_SPEED_SCALE = 0.4;
 
 // Particle surface radius (just above the globe)
 const PARTICLE_RADIUS = GLOBE_RADIUS * 1.042;
@@ -126,8 +131,25 @@ function _resetParticle(i, randomAge) {
   _lat[i]  = Math.random() * 180 - 90;
   _lon[i]  = Math.random() * 360 - 180;
   _age[i]  = randomAge ? Math.random() : 0;
-  _life[i] = 3 + Math.random() * 6; // 3–9 seconds
+  _life[i] = 6 + Math.random() * 8; // 6–14 seconds
 }
+
+function _createCircleTexture() {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const center = size / 2;
+  const gradient = ctx.createRadialGradient(center, center, 0, center, center, center);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.4, "rgba(255,255,255,0.8)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+const _circleTexture = _createCircleTexture();
 
 // Geometry and Points mesh (created once)
 const _geometry = new THREE.BufferGeometry();
@@ -135,13 +157,15 @@ _geometry.setAttribute("position", new THREE.BufferAttribute(_positions, 3).setU
 _geometry.setAttribute("color",    new THREE.BufferAttribute(_colors,    3).setUsage(THREE.DynamicDrawUsage));
 
 const _material = new THREE.PointsMaterial({
-  size: 0.028,
+  size: 0.009,
   vertexColors: true,
   transparent: true,
-  opacity: 0.85,
+  opacity: 0.9,
   blending: THREE.AdditiveBlending,
   depthWrite: false,
   sizeAttenuation: true,
+  alphaMap: _circleTexture,
+  alphaTest: 0.001,
 });
 
 export const windParticles = new THREE.Points(_geometry, _material);
@@ -232,8 +256,6 @@ export function updateWindParticles(dt) {
   const posAttr   = _geometry.attributes.position;
   const colorAttr = _geometry.attributes.color;
 
-  const DEG_PER_M_LAT = 1 / 111_320; // degrees per meter (latitude)
-
   for (let i = 0; i < N; i++) {
     // Advance age
     _age[i] += dt / _life[i];
@@ -249,10 +271,10 @@ export function updateWindParticles(dt) {
     // Sample wind field
     const { u, v, speed } = _sampleField(lat, lon);
 
-    // Advect: convert m/s → degrees/s
+    // Advect: use visual speed scale (degrees/s per m/s) for visible movement
     const cosLat = Math.cos(lat * (Math.PI / 180));
-    const dlat = v * DEG_PER_M_LAT * dt;
-    const dlon = cosLat > 0.001 ? (u * DEG_PER_M_LAT / cosLat) * dt : 0;
+    const dlat = v * VIS_SPEED_SCALE * dt;
+    const dlon = cosLat > 0.001 ? (u * VIS_SPEED_SCALE / cosLat) * dt : 0;
 
     _lat[i] = Math.max(-89.9, Math.min(89.9, lat + dlat));
     _lon[i] = ((lon + dlon + 180) % 360 + 360) % 360 - 180;

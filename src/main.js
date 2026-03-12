@@ -12,7 +12,7 @@ import {
   renderer, scene, camera, controls, globeGroup,
   earth, clouds, heatmapMesh, cloudCoverMesh, precipMesh,
   pointer, raycaster,
-  initMarkers
+  initMarkers, equatorialRing
 } from "./globe/scene.js";
 import { applyLightingMode, updateSunDirection } from "./globe/lighting.js";
 import { updateMarkerMeshes, updateMarkerVisibility, buildHeatmapCanvas, updateSelectedMarker } from "./globe/markers.js";
@@ -22,6 +22,7 @@ import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
 import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh } from "./globe/rainViewer.js";
 import { buildWindField, updateWindParticles, initWindParticles, windParticles } from "./globe/windParticles.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
+import { initMoon, updateMoon } from "./globe/moonLayer.js";
 
 // UI — mode bar
 import { initModeBar } from "./ui/modeBar.js";
@@ -140,6 +141,9 @@ updateGlobeCenter();
 // Initialize wind particle system (particles pre-seeded at random positions)
 initWindParticles();
 
+// Initialize moon with real astronomical position
+initMoon(scene);
+
 // On each successful global weather refresh: rebuild wind field + update toggle labels
 setOnWeatherRefreshed(() => {
   buildWindField(weatherState.points);
@@ -162,6 +166,41 @@ initModeBar({
     // Future: animate globe markers to +Xh forecast values
   },
 });
+
+// Earth axial tilt: 23.44 degrees = 0.40928 radians
+const EARTH_TILT_RAD = 23.44 * Math.PI / 180;
+
+function _getTiltTargetZ(mode) {
+  if (mode === "none") return 0;
+  if (mode === "simple") return EARTH_TILT_RAD;
+  if (mode === "seasonal") {
+    // Seasonal tilt: direction changes with time of year.
+    // Summer solstice (≈day 172, June 21): north pole tilts +23.44° (toward sun projection on XZ).
+    // Winter solstice (≈day 355, Dec 21): north pole tilts -23.44°.
+    // Equinoxes: ~0°.
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const dayOfYear = Math.round((now - start) / 86400000);
+    // Cosine gives +1 at summer solstice (day 172), -1 at winter solstice
+    const angle = ((dayOfYear - 172) / 365) * 2 * Math.PI;
+    return EARTH_TILT_RAD * Math.cos(angle);
+  }
+  return 0;
+}
+
+function handleToggleTiltSimple() {
+  weatherState.tiltMode = weatherState.tiltMode === "simple" ? "none" : "simple";
+  weatherState.globeTargetTiltZ = _getTiltTargetZ(weatherState.tiltMode);
+  equatorialRing.visible = weatherState.tiltMode !== "none";
+  updateToggleButtons();
+}
+
+function handleToggleTiltSeasonal() {
+  weatherState.tiltMode = weatherState.tiltMode === "seasonal" ? "none" : "seasonal";
+  weatherState.globeTargetTiltZ = _getTiltTargetZ(weatherState.tiltMode);
+  equatorialRing.visible = weatherState.tiltMode !== "none";
+  updateToggleButtons();
+}
 
 // Must be declared BEFORE animate() is called to avoid temporal dead zone error
 let _lastFrameTime = performance.now();
@@ -188,6 +227,8 @@ dom.providerSelect.addEventListener("change", handleProviderChange);
 dom.providerSaveButton.addEventListener("click", handleProviderSave);
 dom.toggleMarkersButton.addEventListener("click", handleToggleMarkers);
 dom.toggleTerminatorButton.addEventListener("click", handleToggleTerminator);
+dom.toggleTiltSimpleButton?.addEventListener("click", handleToggleTiltSimple);
+dom.toggleTiltSeasonalButton?.addEventListener("click", handleToggleTiltSeasonal);
 
 // Sidebar toggle
 dom.sidebarToggle.addEventListener("click", () => {
@@ -298,9 +339,16 @@ dom.toggleSettingsButton.addEventListener("click", () => {
 // Initial data fetch
 refreshGlobalWeather(false, samplePoints, summaryPoints);
 requestCurrentLocationSelection(false);
+let _moonUpdateCounter = 0;
 window.setInterval(() => {
   updateSunDirection();
   updateRefreshCountdown();
+  // Update moon position every 60 seconds (moon moves slowly)
+  _moonUpdateCounter++;
+  if (_moonUpdateCounter >= 60) {
+    _moonUpdateCounter = 0;
+    updateMoon(new Date());
+  }
 }, 1000);
 window.setInterval(() => {
   refreshGlobalWeather(false, samplePoints, summaryPoints);
@@ -327,6 +375,15 @@ function animate() {
   if (Math.abs(dx) > 0.001) {
     globeGroup.position.x += dx * 0.06;
   }
+
+  // Smooth axial tilt animation
+  const dz = weatherState.globeTargetTiltZ - globeGroup.rotation.z;
+  if (Math.abs(dz) > 0.0002) {
+    globeGroup.rotation.z += dz * 0.04;
+  } else {
+    globeGroup.rotation.z = weatherState.globeTargetTiltZ;
+  }
+
   controls.update();
   renderer.render(scene, camera);
 }

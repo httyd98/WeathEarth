@@ -223,6 +223,22 @@ export function updateToggleButtons() {
     const key = `clouds.${btn.dataset.cloud}`;
     btn.textContent = t(key);
   });
+
+  if (dom.toggleTiltSimpleButton) {
+    dom.toggleTiltSimpleButton.innerHTML = buttonMarkup(
+      `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="2 3"/><line x1="7" y1="4" x2="17" y2="20" stroke="rgba(100,180,255,0.8)"/></svg>`,
+      weatherState.tiltMode === "simple" ? t("btn.tiltSimpleOff") : t("btn.tiltSimple")
+    );
+    dom.toggleTiltSimpleButton.classList.toggle("active", weatherState.tiltMode === "simple");
+  }
+
+  if (dom.toggleTiltSeasonalButton) {
+    dom.toggleTiltSeasonalButton.innerHTML = buttonMarkup(
+      `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 3 Q16 8 12 12 Q8 16 12 21" stroke="rgba(100,180,255,0.8)"/><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="2 3"/></svg>`,
+      weatherState.tiltMode === "seasonal" ? t("btn.tiltSeasonalOff") : t("btn.tiltSeasonal")
+    );
+    dom.toggleTiltSeasonalButton.classList.toggle("active", weatherState.tiltMode === "seasonal");
+  }
 }
 
 export function updateFeatureVisibility() {
