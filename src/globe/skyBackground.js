@@ -47,9 +47,9 @@ const GC_DEC = -28.936 * DEG;
 
 // ── Sky texture generation ───────────────────────────────────────────────────
 
-/** Build the 4096×2048 sky canvas and return a THREE.CanvasTexture. */
+/** Build the 2048×1024 sky canvas and return a THREE.CanvasTexture. */
 function buildSkyTexture() {
-  const W = 4096, H = 2048;
+  const W = 2048, H = 1024;
   const canvas = document.createElement("canvas");
   canvas.width  = W;
   canvas.height = H;
@@ -481,15 +481,18 @@ export function initSkyBackground(scene, oldStarField) {
   });
 
   _skyMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(390, 64, 32),
+    new THREE.SphereGeometry(390, 32, 16),
     mat
   );
   _skyMesh.renderOrder = -1; // render before everything else
   scene.add(_skyMesh);
 
-  // Hide the old particle starfield (replaced by this sphere)
+  // Remove and dispose the old particle starfield (replaced by this sphere)
   if (oldStarField) {
     oldStarField.visible = false;
+    if (oldStarField.parent) oldStarField.parent.remove(oldStarField);
+    oldStarField.geometry?.dispose();
+    oldStarField.material?.dispose();
   }
 
   // Set initial rotation based on current sidereal time

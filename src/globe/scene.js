@@ -33,8 +33,8 @@ export const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
 controls.enableDamping = true;
 controls.dampingFactor = 0.045;
-controls.minDistance = 5.35;
-controls.maxDistance = 20;
+controls.minDistance = 7;
+controls.maxDistance = 50;
 controls.autoRotate = false;
 controls.rotateSpeed = 0.42;
 
@@ -53,7 +53,7 @@ export const earthMaterial = new THREE.MeshStandardMaterial({
 });
 
 export const earth = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS, 256, 256),
+  new THREE.SphereGeometry(GLOBE_RADIUS, 128, 128),
   earthMaterial
 );
 earth.renderOrder = 1;
@@ -80,7 +80,7 @@ export const atmosphere = new THREE.Mesh(
 globeGroup.add(atmosphere);
 
 export const clouds = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.038, 80, 80),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.038, 48, 48),
   new THREE.MeshStandardMaterial({
     color: 0xffffff,
     transparent: true,

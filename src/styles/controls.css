@@ -5,6 +5,11 @@
   transform: translateX(-50%);
   width: min(560px, calc(100vw - 24px));
   z-index: 2;
+  padding: 8px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(151, 192, 255, 0.10);
+  background: rgba(7, 16, 31, 0.55);
+  box-shadow: none;
 }
 
 .provider-heading-actions {

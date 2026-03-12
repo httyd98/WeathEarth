@@ -21,9 +21,10 @@ import { buildCloudCanvas } from "./globe/cloudLayer.js";
 import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
 import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
 import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh } from "./globe/rainViewer.js";
-import { buildWindField, updateWindParticles, initWindParticles, windParticles, isWindFieldEmpty } from "./globe/windParticles.js";
+import { buildWindField, updateWindParticles, initWindParticles, windParticles, isWindFieldEmpty, setWindTrailsVisible } from "./globe/windParticles.js";
 import { timeZoneMesh, buildTimeZoneCanvas, updateTimeZoneLayer, highlightZoneAtUV, clearTimeZoneHighlight } from "./globe/timeZoneLayer.js";
-import { initEarthInterior, enableEarthInterior, disableEarthInterior } from "./globe/earthInterior.js";
+import { initEarthInterior, enableEarthInterior, disableEarthInterior, updateEarthInterior, toggleLayerVisibility, hasActiveFullSphereLayers } from "./globe/earthInterior.js";
+import { enableEmField, disableEmField } from "./globe/emFieldLayer.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
 import { initMoon, updateMoon } from "./globe/moonLayer.js";
 import { initSkyBackground, updateSkyRotation } from "./globe/skyBackground.js";
@@ -69,6 +70,7 @@ import {
   updateProviderPanel,
   updateToggleButtons,
   updateFeatureVisibility,
+  updateLegend,
   updateRefreshCountdown,
   setGetActiveProvider,
   setGetStoredApiKey,
@@ -267,6 +269,9 @@ function handleToggleEarthInterior() {
     disableEarthInterior();
   }
   dom.toggleEarthInteriorButton?.classList.toggle("active", weatherState.showEarthInterior);
+  // Show/hide per-layer toggles
+  const layerToggles = document.getElementById("earth-layer-toggles");
+  if (layerToggles) layerToggles.style.display = weatherState.showEarthInterior ? "" : "none";
   updateToggleButtons();
 }
 
@@ -299,6 +304,27 @@ dom.toggleTiltSimpleButton?.addEventListener("click", handleToggleTiltSimple);
 dom.toggleTiltSeasonalButton?.addEventListener("click", handleToggleTiltSeasonal);
 dom.toggleTimeZonesButton?.addEventListener("click", handleToggleTimeZones);
 dom.toggleEarthInteriorButton?.addEventListener("click", handleToggleEarthInterior);
+
+dom.toggleEmFieldButton?.addEventListener("click", () => {
+  weatherState.showEmField = !weatherState.showEmField;
+  if (weatherState.showEmField) {
+    enableEmField();
+  } else {
+    disableEmField();
+  }
+  dom.toggleEmFieldButton.classList.toggle("active", weatherState.showEmField);
+  updateToggleButtons();
+  updateLegend();
+});
+
+// Per-layer visibility toggles (earth interior)
+document.querySelectorAll("#earth-layer-toggles .layer-toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const idx = parseInt(btn.dataset.layer, 10);
+    btn.classList.toggle("active");
+    toggleLayerVisibility(idx, btn.classList.contains("active"));
+  });
+});
 
 // Sidebar toggle
 dom.sidebarToggle.addEventListener("click", () => {
@@ -353,18 +379,21 @@ dom.toggleHeatmapButton?.addEventListener("click", () => {
   }
   dom.toggleHeatmapButton.classList.toggle("active", weatherState.showHeatmap);
   updateToggleButtons();
+  updateLegend();
 });
 
 // Wind toggle
 dom.toggleWindButton?.addEventListener("click", () => {
   weatherState.showWind = !weatherState.showWind;
   windParticles.visible = weatherState.showWind;
+  setWindTrailsVisible(weatherState.showWind);
   // Rebuild field on demand if no data yet (e.g., enabled before first refresh)
   if (weatherState.showWind && isWindFieldEmpty()) {
     buildWindField(weatherState.points);
   }
   dom.toggleWindButton.classList.toggle("active", weatherState.showWind);
   updateToggleButtons();
+  updateLegend();
 });
 
 // Precipitation toggle — tries RainViewer first, falls back to Gaussian blobs
@@ -393,6 +422,7 @@ dom.togglePrecipitationButton?.addEventListener("click", async () => {
 
   dom.togglePrecipitationButton.classList.toggle("active", weatherState.showPrecipitation);
   updateToggleButtons();
+  updateLegend();
 });
 
 // Language selector
@@ -403,6 +433,7 @@ dom.languageSelect.addEventListener("change", () => {
   document.documentElement.lang = weatherState.language;
   renderAllI18n();
   updateToggleButtons();
+  updateLegend();
   updateProviderPanel();
   resetSelectionPanel();
   updateHud();
@@ -449,22 +480,40 @@ function animate() {
   const dt = Math.min((now - _lastFrameTime) / 1000, 0.1);
   _lastFrameTime = now;
 
-  updateControlsForZoom();
-  clouds.rotation.y += 0.00008;
+  // Skip rendering entirely when tab is hidden (saves CPU/GPU)
+  if (document.hidden) {
+    return;
+  }
 
-  // Wind particles
+  updateControlsForZoom();
+
+  // Only rotate clouds when they're visible
+  if (clouds.visible) {
+    clouds.rotation.y += 0.00008;
+  }
+
+  // Wind particles — only update when visible
   if (windParticles.visible) {
     updateWindParticles(dt);
   }
 
-  // Smooth globe centering
+  // Animated earth interior layers — update when cross-section or full-sphere layers are active
+  if (weatherState.showEarthInterior || hasActiveFullSphereLayers()) {
+    updateEarthInterior(dt);
+  }
+
+  // Smooth globe centering — skip when already at target
   const dx = weatherState.globeTargetX - globeGroup.position.x;
   if (Math.abs(dx) > 0.001) {
     globeGroup.position.x += dx * 0.06;
   }
+  // Keep OrbitControls target in sync so rotation is always around the globe center
+  controls.target.x = globeGroup.position.x;
 
-  // Smooth axial tilt animation via quaternion slerp
-  globeGroup.quaternion.slerp(_targetQuat, 0.04);
+  // Smooth axial tilt — skip slerp when already at target (saves per-frame quaternion math)
+  if (1 - globeGroup.quaternion.dot(_targetQuat) > 0.00001) {
+    globeGroup.quaternion.slerp(_targetQuat, 0.04);
+  }
 
   controls.update();
   renderer.render(scene, camera);

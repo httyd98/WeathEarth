@@ -24,7 +24,10 @@
       "Bash(git add src/globe/precipitationLayer.js src/globe/satelliteCloudLayer.js src/i18n.js src/main.js)",
       "Bash(git add -p -- src/globe/rainViewer.js src/globe/windParticles.js src/ui/modeBar.js src/state.js src/i18n.js)",
       "Bash(git add index.html src/globe/precipitationLayer.js src/i18n.js src/main.js src/state.js src/styles/sidebar.css src/ui/index.js src/weather/api.js src/globe/rainViewer.js src/globe/windParticles.js src/ui/modeBar.js)",
-      "Bash(git add index.html src/globe/windParticles.js src/globe/skyBackground.js src/globe/timeZoneLayer.js src/i18n.js src/main.js src/state.js src/styles/sidebar.css src/ui/index.js)"
+      "Bash(git add index.html src/globe/windParticles.js src/globe/skyBackground.js src/globe/timeZoneLayer.js src/i18n.js src/main.js src/state.js src/styles/sidebar.css src/ui/index.js)",
+      "Bash(npm ls:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const g = require\\(''geomagnetism''\\); const m = g.model\\(\\); const info = m.point\\([45, 9]\\); console.log\\(JSON.stringify\\(info\\)\\)\")"
     ]
   }
 }

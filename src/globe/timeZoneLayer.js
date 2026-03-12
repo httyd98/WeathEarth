@@ -79,7 +79,7 @@ let _idImageData = null; // cached ImageData for fast pixel reads
 
 // ── Sphere mesh ──────────────────────────────────────────────────────────────
 export const timeZoneMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.042, 128, 64),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.042, 64, 32),
   new THREE.MeshBasicMaterial({
     map: _texture,
     transparent: true,

@@ -268,6 +268,76 @@ export function updateToggleButtons() {
     );
     dom.toggleEarthInteriorButton.classList.toggle("active", weatherState.showEarthInterior);
   }
+
+  if (dom.toggleEmFieldButton) {
+    dom.toggleEmFieldButton.innerHTML = buttonMarkup(
+      `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6-2.7 6-6 6" stroke-dasharray="3 2"/><path d="M2.5 12c0-5.2 4.3-9.5 9.5-9.5s9.5 4.3 9.5 9.5-4.3 9.5-9.5 9.5" stroke-dasharray="4 3" stroke-width="1.2"/></svg>`,
+      weatherState.showEmField ? t("btn.emFieldOff") : t("btn.emField")
+    );
+    dom.toggleEmFieldButton.classList.toggle("active", weatherState.showEmField);
+  }
+}
+
+// ── Dynamic legend ──────────────────────────────────────────────────────────
+
+const LEGEND_CONFIGS = {
+  default: {
+    titleKey: "legend.title",
+    footnoteKey: "legend.footnote",
+    gradient: "linear-gradient(90deg, #335cff 0%, #58d8ff 35%, #f7f08e 65%, #ff7a4c 100%)",
+    labels: ["-25°C", "0°C", "20°C", "40°C"],
+  },
+  heatmap: {
+    titleKey: "legend.title.heatmap",
+    footnoteKey: "legend.footnote.heatmap",
+    gradient: "linear-gradient(90deg, #1400b4 0%, #0064ff 15%, #00e6c8 30%, #50ff3c 45%, #ffe600 60%, #ff5000 80%, #c80000 100%)",
+    labels: ["-30°C", "-15°C", "0°C", "10°C", "20°C", "30°C", "40°C"],
+  },
+  wind: {
+    titleKey: "legend.title.wind",
+    footnoteKey: "legend.footnote.wind",
+    gradient: "linear-gradient(90deg, #2650ff 0%, #00ccff 35%, #00ffcc 55%, #ff9933 85%, #ff3300 100%)",
+    labels: ["0 m/s", "5", "15", "35+"],
+  },
+  precipitation: {
+    titleKey: "legend.title.precipitation",
+    footnoteKey: "legend.footnote.precipitation",
+    gradient: "linear-gradient(90deg, #6699ff 0%, #00ddff 20%, #ffff00 40%, #ff9900 60%, #ff0000 80%, #cc00cc 100%)",
+    labels: ["0.05", "1", "3", "7", "15", "30+ mm/h"],
+  },
+  emField: {
+    titleKey: "legend.title.emField",
+    footnoteKey: "legend.footnote.emField",
+    gradient: "linear-gradient(90deg, #00ffff 0%, #8844ff 50%, #ff00ff 100%)",
+    labels: ["25 000 nT", "45 000 nT", "65 000 nT"],
+  },
+};
+
+/**
+ * Update the legend panel to reflect the currently active colored feature.
+ * Priority: emField > precipitation > wind > heatmap > default (markers).
+ */
+export function updateLegend() {
+  const legendPanel = document.querySelector(".legend-panel");
+  if (!legendPanel) return;
+
+  let key = "default";
+  if (weatherState.showEmField) key = "emField";
+  else if (weatherState.showPrecipitation) key = "precipitation";
+  else if (weatherState.showWind) key = "wind";
+  else if (weatherState.showHeatmap) key = "heatmap";
+
+  const cfg = LEGEND_CONFIGS[key];
+
+  const titleEl = legendPanel.querySelector(".section-title");
+  const footnoteEl = legendPanel.querySelector(".footnote");
+  const barEl = legendPanel.querySelector(".legend-bar");
+  const scaleEl = legendPanel.querySelector(".legend-scale");
+
+  if (titleEl) titleEl.textContent = t(cfg.titleKey);
+  if (footnoteEl) footnoteEl.textContent = t(cfg.footnoteKey);
+  if (barEl) barEl.style.background = cfg.gradient;
+  if (scaleEl) scaleEl.innerHTML = cfg.labels.map(l => `<span>${l}</span>`).join("");
 }
 
 export function updateFeatureVisibility() {

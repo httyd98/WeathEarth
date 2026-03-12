@@ -15,9 +15,11 @@ import { setStatus } from "../ui/index.js";
 export function updateControlsForZoom() {
   const distance = controls.getDistance();
   controls.rotateSpeed = THREE.MathUtils.clamp(distance / 68, 0.018, 0.24);
+  // Only rebuild marker matrices when markers are visible and zoom changed significantly
   if (
-    weatherState.lastDistanceForScale === null ||
-    Math.abs(distance - weatherState.lastDistanceForScale) > 0.01
+    weatherState.showMarkers &&
+    (weatherState.lastDistanceForScale === null ||
+     Math.abs(distance - weatherState.lastDistanceForScale) > 0.05)
   ) {
     weatherState.lastDistanceForScale = distance;
     updateMarkerMeshes();

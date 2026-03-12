@@ -44,6 +44,7 @@ export const dom = {
   toggleTiltSeasonalButton:   document.getElementById("toggle-tilt-seasonal-button"),
   toggleTimeZonesButton:      document.querySelector("#toggle-time-zones-button"),
   toggleEarthInteriorButton:  document.querySelector("#toggle-earth-interior-button"),
+  toggleEmFieldButton:        document.querySelector("#toggle-em-field-button"),
   leftSidebarToggle:          document.querySelector("#left-sidebar-toggle"),
   // Sidebar statistics panel (Statistiche accordion)
   sidebarStationCount: document.querySelector("#sidebar-station-count"),
@@ -87,6 +88,7 @@ export const weatherState = {
   tiltMode: "none",
   showTimeZones: false,
   showEarthInterior: false,
+  showEmField: false,
   summaryStats: null,
   lastDistanceForScale: null,
   language: localStorage.getItem('terracast:language') ?? 'it'

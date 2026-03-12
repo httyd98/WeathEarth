@@ -96,6 +96,32 @@
   border-color: rgba(140, 230, 255, 0.35);
 }
 
+/* Layer toggles (earth interior sub-buttons) */
+.layer-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 2px 0 0;
+}
+.layer-toggle-btn {
+  font-size: 0.72rem;
+  padding: 5px 6px;
+  color: var(--text);
+  background: rgba(15, 31, 58, 0.60);
+  border: 1px solid rgba(151, 192, 255, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: center;
+}
+.layer-toggle-btn:hover {
+  background: rgba(25, 45, 80, 0.70);
+}
+.layer-toggle-btn.active {
+  background: rgba(140, 230, 255, 0.10);
+  border-color: rgba(140, 230, 255, 0.30);
+}
+
 /* Cloud 3-state switch */
 .cloud-switch {
   display: grid;
