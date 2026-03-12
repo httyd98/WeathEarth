@@ -42,6 +42,19 @@ export function buildSamplePoints() {
       points.push({ lat, lon, label: formatLocationName(lat, lon) });
     }
   });
+
+  // Polar extensions: ±85° rings + single pole points
+  for (const lat of [-85, 85]) {
+    const lonCount = Math.max(6, Math.round(BASE_LON_COUNT * Math.cos((lat * Math.PI) / 180)));
+    const lonStep = 360 / lonCount;
+    for (let j = 0; j < lonCount; j++) {
+      const lon = (((-180 + j * lonStep) + 180) % 360) - 180;
+      points.push({ lat, lon, label: formatLocationName(lat, lon) });
+    }
+  }
+  points.push({ lat: 90, lon: 0, label: formatLocationName(90, 0) });
+  points.push({ lat: -90, lon: 0, label: formatLocationName(-90, 0) });
+
   return points;
 }
 

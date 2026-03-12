@@ -22,7 +22,8 @@ import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
 import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
 import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh } from "./globe/rainViewer.js";
 import { buildWindField, updateWindParticles, initWindParticles, windParticles, isWindFieldEmpty } from "./globe/windParticles.js";
-import { timeZoneMesh, buildTimeZoneCanvas, updateTimeZoneLayer } from "./globe/timeZoneLayer.js";
+import { timeZoneMesh, buildTimeZoneCanvas, updateTimeZoneLayer, highlightZoneAtUV, clearTimeZoneHighlight } from "./globe/timeZoneLayer.js";
+import { initEarthInterior, enableEarthInterior, disableEarthInterior } from "./globe/earthInterior.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
 import { initMoon, updateMoon } from "./globe/moonLayer.js";
 import { initSkyBackground, updateSkyRotation } from "./globe/skyBackground.js";
@@ -141,8 +142,18 @@ updateToggleButtons();
 updateFeatureVisibility();
 updateGlobeCenter();
 
+// Apply initial cloud mode from default state
+clouds.visible = weatherState.cloudMode === "aesthetic";
+cloudCoverMesh.visible = weatherState.cloudMode === "real";
+document.querySelectorAll("#cloud-switch .cloud-option").forEach(b => {
+  b.classList.toggle("active", b.dataset.cloud === weatherState.cloudMode);
+});
+
 // Initialize wind particle system (particles pre-seeded at random positions)
 initWindParticles();
+
+// Initialize earth interior module (creates layer spheres + cap geometries lazily)
+initEarthInterior();
 
 // Initialize moon with real astronomical position
 initMoon(scene);
@@ -241,8 +252,21 @@ function handleToggleTimeZones() {
   timeZoneMesh.visible = weatherState.showTimeZones;
   if (weatherState.showTimeZones) {
     buildTimeZoneCanvas(new Date());
+  } else {
+    clearTimeZoneHighlight();
   }
   dom.toggleTimeZonesButton?.classList.toggle("active", weatherState.showTimeZones);
+  updateToggleButtons();
+}
+
+function handleToggleEarthInterior() {
+  weatherState.showEarthInterior = !weatherState.showEarthInterior;
+  if (weatherState.showEarthInterior) {
+    enableEarthInterior();
+  } else {
+    disableEarthInterior();
+  }
+  dom.toggleEarthInteriorButton?.classList.toggle("active", weatherState.showEarthInterior);
   updateToggleButtons();
 }
 
@@ -274,11 +298,20 @@ dom.toggleTerminatorButton.addEventListener("click", handleToggleTerminator);
 dom.toggleTiltSimpleButton?.addEventListener("click", handleToggleTiltSimple);
 dom.toggleTiltSeasonalButton?.addEventListener("click", handleToggleTiltSeasonal);
 dom.toggleTimeZonesButton?.addEventListener("click", handleToggleTimeZones);
+dom.toggleEarthInteriorButton?.addEventListener("click", handleToggleEarthInterior);
 
 // Sidebar toggle
 dom.sidebarToggle.addEventListener("click", () => {
   weatherState.rightSidebarOpen = !weatherState.rightSidebarOpen;
   dom.rightSidebar.classList.toggle("collapsed", !weatherState.rightSidebarOpen);
+  updateGlobeCenter();
+});
+
+// Left sidebar toggle
+dom.leftSidebarToggle?.addEventListener("click", () => {
+  weatherState.leftSidebarOpen = !weatherState.leftSidebarOpen;
+  document.querySelector(".hud").classList.toggle("collapsed", !weatherState.leftSidebarOpen);
+  dom.leftSidebarToggle.classList.toggle("collapsed", !weatherState.leftSidebarOpen);
   updateGlobeCenter();
 });
 
@@ -454,6 +487,19 @@ function handlePointerDown(event) {
 
 function handlePointerMove(event) {
   updatePointer(event);
+
+  // Timezone hover highlighting (only when not dragging)
+  if (!interactionState.isPointerDown && weatherState.showTimeZones) {
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObject(timeZoneMesh);
+    if (hits.length > 0 && hits[0].uv) {
+      const uv = hits[0].uv;
+      highlightZoneAtUV(uv.x, 1 - uv.y);
+    } else {
+      clearTimeZoneHighlight();
+    }
+  }
+
   if (!interactionState.isPointerDown) {
     return;
   }
@@ -539,7 +585,7 @@ function handleToggleTerminator() {
 
 function updateGlobeCenter() {
   const vw = window.innerWidth;
-  const leftW = Math.min(430, vw);  // left sidebar width
+  const leftW = weatherState.leftSidebarOpen ? Math.min(430, vw) : 0;
   const rightW = weatherState.rightSidebarOpen ? Math.min(340, vw) : 44;
   const center = leftW + (vw - leftW - rightW) / 2;
   const screenCenter = vw / 2;

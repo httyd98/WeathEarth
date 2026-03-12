@@ -260,6 +260,14 @@ export function updateToggleButtons() {
     );
     dom.toggleTimeZonesButton.classList.toggle("active", weatherState.showTimeZones);
   }
+
+  if (dom.toggleEarthInteriorButton) {
+    dom.toggleEarthInteriorButton.innerHTML = buttonMarkup(
+      `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="6" stroke-width="1.1"/><circle cx="12" cy="12" r="3.2" stroke-width="1"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>`,
+      weatherState.showEarthInterior ? t("btn.earthInteriorOff") : t("btn.earthInterior")
+    );
+    dom.toggleEarthInteriorButton.classList.toggle("active", weatherState.showEarthInterior);
+  }
 }
 
 export function updateFeatureVisibility() {

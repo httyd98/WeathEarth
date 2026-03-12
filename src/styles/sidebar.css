@@ -149,6 +149,11 @@
   padding: 12px 14px;
 }
 
+.mode-bar-inline {
+  display: grid;
+  gap: 8px;
+}
+
 .mode-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;

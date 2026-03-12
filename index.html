@@ -113,6 +113,10 @@
 				</div>
 			</aside>
 
+			<button id="left-sidebar-toggle" class="left-sidebar-toggle" type="button" aria-label="Toggle left sidebar">
+				<span class="left-sidebar-arrow">&#8249;</span>
+			</button>
+
 			<!-- ── Right sidebar (accordion categories) ── -->
 			<aside id="right-sidebar" class="right-sidebar collapsed">
 				<button
@@ -125,25 +129,6 @@
 				</button>
 
 				<div class="sidebar-content">
-					<!-- Mode bar: Ora / Modelli — always visible at top -->
-					<div class="panel sidebar-group mode-bar">
-						<div class="mode-switch">
-							<button id="mode-realtime-btn" class="mode-option active" type="button" data-i18n="mode.realtime">Ora</button>
-							<button id="mode-forecast-btn" class="mode-option"        type="button" data-i18n="mode.forecast">Modelli</button>
-						</div>
-						<div id="model-selector-row" class="model-selector-row" hidden>
-							<button data-model="auto"        class="model-option active" type="button">Auto</button>
-							<button data-model="gfs"         class="model-option"        type="button">GFS</button>
-							<button data-model="icon"        class="model-option"        type="button">ICON</button>
-							<button data-model="meteofrance" class="model-option"        type="button">MF</button>
-							<button data-model="gem"         class="model-option"        type="button">GEM</button>
-						</div>
-						<div id="forecast-time-row" class="forecast-time-row" hidden>
-							<input id="forecast-time-slider" type="range" min="0" max="72" step="1" value="0"/>
-							<span id="forecast-time-label" class="forecast-time-label">Ora attuale</span>
-						</div>
-					</div>
-
 					<!-- ── Meteo ── -->
 					<details class="accordion-item" open>
 						<summary class="accordion-header">
@@ -152,6 +137,23 @@
 							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
 						</summary>
 						<div class="accordion-body sidebar-buttons">
+							<div class="mode-bar-inline">
+								<div class="mode-switch">
+									<button id="mode-realtime-btn" class="mode-option active" type="button" data-i18n="mode.realtime">Ora</button>
+									<button id="mode-forecast-btn" class="mode-option"        type="button" data-i18n="mode.forecast">Modelli</button>
+								</div>
+								<div id="model-selector-row" class="model-selector-row" hidden>
+									<button data-model="auto"        class="model-option active" type="button">Auto</button>
+									<button data-model="gfs"         class="model-option"        type="button">GFS</button>
+									<button data-model="icon"        class="model-option"        type="button">ICON</button>
+									<button data-model="meteofrance" class="model-option"        type="button">MF</button>
+									<button data-model="gem"         class="model-option"        type="button">GEM</button>
+								</div>
+								<div id="forecast-time-row" class="forecast-time-row" hidden>
+									<input id="forecast-time-slider" type="range" min="0" max="72" step="1" value="0"/>
+									<span id="forecast-time-label" class="forecast-time-label">Ora attuale</span>
+								</div>
+							</div>
 							<div id="cloud-switch" class="cloud-switch">
 								<button data-cloud="off"       class="cloud-option active" type="button" data-i18n="clouds.off">Off</button>
 								<button data-cloud="aesthetic" class="cloud-option"        type="button" data-i18n="clouds.aesthetic">Estetiche</button>
@@ -190,7 +192,24 @@
 						</div>
 					</details>
 
-					<!-- ── Statistiche ── -->
+					<!-- ── Geo ── -->
+					<details class="accordion-item">
+						<summary class="accordion-header">
+							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+								<circle cx="10" cy="10" r="8"/>
+								<circle cx="10" cy="10" r="5.5" stroke-width="1.2"/>
+								<circle cx="10" cy="10" r="3" stroke-width="1"/>
+								<circle cx="10" cy="10" r="1.4" fill="currentColor" stroke="none"/>
+							</svg>
+							<span class="acc-label" data-i18n="cat.geo">Geo</span>
+							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+						</summary>
+						<div class="accordion-body sidebar-buttons">
+							<button id="toggle-earth-interior-button" class="feature-button" type="button" data-i18n="btn.earthInterior">Strati interni della Terra</button>
+						</div>
+					</details>
+
+				<!-- ── Statistiche ── -->
 					<details class="accordion-item">
 						<summary class="accordion-header">
 							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="10" width="3" height="8" rx="1"/><rect x="8.5" y="6" width="3" height="12" rx="1"/><rect x="14" y="2" width="3" height="16" rx="1"/></svg>
@@ -247,10 +266,6 @@
 			</aside>
 
 			<section class="search-dock panel">
-				<div class="section-heading">
-					<p class="eyebrow" data-i18n="search.eyebrow">Ricerca</p>
-					<p class="section-title" data-i18n="search.title">Località o posizione attuale</p>
-				</div>
 				<form id="location-search-form" class="search-form">
 					<div class="search-input-wrap">
 						<button

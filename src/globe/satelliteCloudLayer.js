@@ -17,8 +17,8 @@
  *     5. VIIRS NOAA-20       (~375 m)
  *     6. MODIS Terra         (~500 m)
  *
- * Cloud extraction: pixels that are bright (mean > 0.42) AND desaturated
- * (saturation < 0.38) are classified as cloud/snow/ice and kept in white;
+ * Cloud extraction: pixels that are bright (mean > 0.32) AND desaturated
+ * (saturation < 0.42) are classified as cloud/snow/ice and kept in white;
  * everything else is made transparent.
  */
 
@@ -93,8 +93,8 @@ function fetchGibsImage(layer, date) {
  * Algorithm (per pixel):
  *   brightness = (R + G + B) / 3
  *   saturation = (max - min) / max
- *   if brightness > 0.42 && saturation < 0.38 → cloud
- *     alpha = clamp((brightness - 0.42) / 0.58 * 1.35, 0, 1) * 240
+ *   if brightness > 0.32 && saturation < 0.42 → cloud
+ *     alpha = clamp((brightness - 0.32) / 0.68 * 1.6, 0, 1) * 240
  *     colour = (245, 248, 255)  — slightly cool white
  *   else → transparent (alpha = 0)
  *
@@ -120,9 +120,9 @@ function extractAndApplyClouds({ img }) {
     const min = Math.min(r, g, b);
     const saturation = max === 0 ? 0 : (max - min) / max;
 
-    if (brightness > 0.42 && saturation < 0.38) {
-      const rawAlpha = (brightness - 0.42) / 0.58;
-      const alpha = Math.round(Math.min(rawAlpha * 1.35, 1) * 240);
+    if (brightness > 0.32 && saturation < 0.42) {
+      const rawAlpha = (brightness - 0.32) / 0.68;
+      const alpha = Math.round(Math.min(rawAlpha * 1.6, 1) * 240);
       data[i]     = 245; // slightly cool white
       data[i + 1] = 248;
       data[i + 2] = 255;

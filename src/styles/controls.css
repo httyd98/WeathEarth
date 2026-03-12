@@ -1,7 +1,7 @@
 .search-dock {
   position: absolute;
   left: 50%;
-  bottom: 22px;
+  top: 16px;
   transform: translateX(-50%);
   width: min(560px, calc(100vw - 24px));
   z-index: 2;
@@ -34,7 +34,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 .search-input-wrap {
@@ -191,7 +191,7 @@ button:disabled {
     right: 12px;
     width: auto;
     transform: none;
-    bottom: 12px;
+    top: 12px;
   }
 }
 

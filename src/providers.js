@@ -356,6 +356,7 @@ export function normalizeOpenMeteoEntry(entry) {
     weatherCode: entry.current.weather_code,
     conditionLabel: getWeatherCodeLabel(entry.current.weather_code),
     windSpeed: entry.current.wind_speed_10m,
+    windDirection: entry.current.wind_direction_10m ?? null,
     cloudCover: entry.current.cloud_cover ?? null,
     precipitation: entry.current.precipitation ?? 0,
     isDay: Boolean(entry.current.is_day),

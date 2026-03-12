@@ -39,10 +39,12 @@ export const dom = {
   languageSelect: document.querySelector("#language-select"),
   selectionCloudCover: document.querySelector("#selection-cloud-cover"),
   selectionPrecipitation: document.querySelector("#selection-precipitation"),
-  toggleWindButton:         document.querySelector("#toggle-wind-button"),
-  toggleTiltSimpleButton:   document.getElementById("toggle-tilt-simple-button"),
-  toggleTiltSeasonalButton: document.getElementById("toggle-tilt-seasonal-button"),
-  toggleTimeZonesButton:    document.querySelector("#toggle-time-zones-button"),
+  toggleWindButton:           document.querySelector("#toggle-wind-button"),
+  toggleTiltSimpleButton:     document.getElementById("toggle-tilt-simple-button"),
+  toggleTiltSeasonalButton:   document.getElementById("toggle-tilt-seasonal-button"),
+  toggleTimeZonesButton:      document.querySelector("#toggle-time-zones-button"),
+  toggleEarthInteriorButton:  document.querySelector("#toggle-earth-interior-button"),
+  leftSidebarToggle:          document.querySelector("#left-sidebar-toggle"),
   // Sidebar statistics panel (Statistiche accordion)
   sidebarStationCount: document.querySelector("#sidebar-station-count"),
   sidebarAvgTemp:      document.querySelector("#sidebar-avg-temp"),
@@ -69,20 +71,22 @@ export const weatherState = {
   providerQuotas: {},
   globalDataProvider: "Open-Meteo",
   selectionRequestToken: 0,
-  showMarkers: true,
+  showMarkers: false,
   showTerminator: true,
-  cloudMode: "off",
+  cloudMode: "aesthetic",
   showPrecipitation: false,
   showWind: false,
   dataMode: "realtime",        // "realtime" | "forecast"
   forecastModel: "auto",       // "auto" | "gfs" | "icon" | "meteofrance" | "gem"
   forecastHours: 0,            // 0..72
   useRainViewer: false,        // true when RainViewer is actively rendering precipitation
+  leftSidebarOpen: true,
   rightSidebarOpen: false,
   showSettings: true,
   globeTargetX: 1.6,
   tiltMode: "none",
   showTimeZones: false,
+  showEarthInterior: false,
   summaryStats: null,
   lastDistanceForScale: null,
   language: localStorage.getItem('terracast:language') ?? 'it'

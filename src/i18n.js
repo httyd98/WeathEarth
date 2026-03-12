@@ -66,6 +66,8 @@ const translations = {
     "btn.tiltSeasonalOff":     "Asse solare: attivo",
     "btn.timeZones":           "Orari globali",
     "btn.hideTimeZones":       "Nascondi orari globali",
+    "btn.earthInterior":       "Strati interni della Terra",
+    "btn.earthInteriorOff":    "Nascondi strati interni",
     "btn.language": "Lingua: {lang}",
     "btn.langIt": "Italiano",
     "btn.langEn": "English",
@@ -79,6 +81,7 @@ const translations = {
     "cat.meteo": "Meteo",
     "cat.astronomia": "Astronomia",
     "cat.situazioni": "Situazioni",
+    "cat.geo": "Geo",
     "cat.statistiche": "Statistiche",
     "cat.impostazioni": "Impostazioni",
 
@@ -269,6 +272,8 @@ const translations = {
     "btn.tiltSeasonalOff":     "Solar axis: on",
     "btn.timeZones":           "Global time zones",
     "btn.hideTimeZones":       "Hide time zones",
+    "btn.earthInterior":       "Earth interior layers",
+    "btn.earthInteriorOff":    "Hide interior layers",
     "btn.language": "Language: {lang}",
     "btn.langIt": "Italiano",
     "btn.langEn": "English",
@@ -282,6 +287,7 @@ const translations = {
     "cat.meteo": "Weather",
     "cat.astronomia": "Astronomy",
     "cat.situazioni": "Events",
+    "cat.geo": "Geo",
     "cat.statistiche": "Statistics",
     "cat.impostazioni": "Settings",
 

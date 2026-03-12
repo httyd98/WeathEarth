@@ -22,19 +22,19 @@ const GRID_SIZE = GRID_W * GRID_H;
 // Particle count
 const N = 60_000;
 
-// VISUAL scale: how many degrees of lat/lon to move per second per m/s of wind speed
+// VISUAL scale: how many degrees of lat/lon to move per second per m/s of wind speed.
 // Physical would be 1/111320 ≈ 0.000009, but that's invisible.
-// Use 1.2 degrees/s per m/s for a visible, comprehensible effect.
-const VIS_SPEED_SCALE = 1.2;
+// 0.3 = visible flowing movement without being too fast.
+const VIS_SPEED_SCALE = 0.3;
 
 // Particle surface radius (just above the globe)
 const PARTICLE_RADIUS = GLOBE_RADIUS * 1.042;
 
-// Typical camera distance (used for zoom-based scaling)
+// Typical camera distance (used for zoom-based size scaling)
 const NOMINAL_CAM_DIST = 12.0;
 
-// Base particle size (replaces hardcoded 0.009)
-const BASE_PARTICLE_SIZE = 0.016;
+// Base particle size
+const BASE_PARTICLE_SIZE = 0.022;
 
 // IDW power parameter
 const IDW_P = 2;
@@ -50,7 +50,7 @@ const _fieldSpeed = new Float32Array(GRID_SIZE);
 const _lat  = new Float32Array(N);  // degrees
 const _lon  = new Float32Array(N);  // degrees
 const _age  = new Float32Array(N);  // [0, 1]
-const _life = new Float32Array(N);  // lifetime in seconds [3, 9]
+const _life = new Float32Array(N);  // lifetime in seconds [3, 7]
 
 // THREE.js geometry buffers
 const _positions = new Float32Array(N * 3);
@@ -59,36 +59,26 @@ const _colors    = new Float32Array(N * 3);
 // Scratch vector for latLonToVector3
 const _vec = new THREE.Vector3();
 
-// Cached camera-facing direction for zoom-bias respawning
-const _camDir = new THREE.Vector3(0, 0, 1);
-
 // Color palette by wind speed (m/s)
-// 0→3 = blue, 3→8 = cyan, 8→15 = green, 15→20 = yellow, 20→30 = orange, >30 = red
 const _color = new THREE.Color();
 
 function _speedToColor(speed_ms) {
   if (speed_ms < 3) {
-    // blue
     const f = speed_ms / 3;
     _color.setRGB(0.1 + f * 0.1, 0.2 + f * 0.4, 1.0);
   } else if (speed_ms < 8) {
-    // blue → cyan
     const f = (speed_ms - 3) / 5;
     _color.setRGB(0.2 - f * 0.2, 0.6 + f * 0.4, 1.0);
   } else if (speed_ms < 15) {
-    // cyan → green
     const f = (speed_ms - 8) / 7;
     _color.setRGB(0.0, 1.0, 1.0 - f);
   } else if (speed_ms < 20) {
-    // green → yellow
     const f = (speed_ms - 15) / 5;
     _color.setRGB(f, 1.0, 0.0);
   } else if (speed_ms < 30) {
-    // yellow → orange
     const f = (speed_ms - 20) / 10;
     _color.setRGB(1.0, 1.0 - f * 0.5, 0.0);
   } else {
-    // orange → red
     const f = Math.min((speed_ms - 30) / 20, 1);
     _color.setRGB(1.0, 0.5 - f * 0.5, 0.0);
   }
@@ -96,12 +86,9 @@ function _speedToColor(speed_ms) {
 
 /** Sample the wind field at arbitrary (lat, lon) using bilinear interpolation. */
 function _sampleField(lat, lon) {
-  // Clamp lat to [-90, 90]
   lat = Math.max(-90, Math.min(90, lat));
-  // Wrap lon to [-180, 180)
   lon = ((lon + 180) % 360 + 360) % 360 - 180;
 
-  // Map to grid coords: lat 90→-90 maps to row 0→GRID_H-1
   const gx = ((lon + 180) / 360) * (GRID_W - 1);
   const gy = ((90 - lat) / 180) * (GRID_H - 1);
 
@@ -135,27 +122,15 @@ function _sampleField(lat, lon) {
   return { u, v, speed };
 }
 
-/** Reset a single particle to a random position with staggered age. */
+/**
+ * Reset a single particle to a random position on the sphere.
+ * Uses cosine-weighted latitude for uniform area distribution.
+ */
 function _resetParticle(i, randomAge) {
-  const camDist = camera.position.distanceTo(globeGroup.position);
-  // Zoom bias: when close (camDist < NOMINAL_CAM_DIST), 80% of particles
-  // respawn in the camera-facing hemisphere to maintain visible density.
-  const zoomBias = Math.max(0, 1.0 - camDist / (NOMINAL_CAM_DIST * 1.4));
-  if (zoomBias > 0.05 && Math.random() < zoomBias * 0.8) {
-    // Spawn in camera-facing hemisphere
-    let attempts = 0;
-    do {
-      _lat[i] = Math.random() * 180 - 90;
-      _lon[i] = Math.random() * 360 - 180;
-      latLonToVector3(_lat[i], _lon[i], 1, _vec);
-      attempts++;
-    } while (_vec.dot(_camDir) < 0.2 && attempts < 15);
-  } else {
-    _lat[i] = Math.random() * 180 - 90;
-    _lon[i] = Math.random() * 360 - 180;
-  }
+  _lat[i] = Math.acos(2 * Math.random() - 1) * (180 / Math.PI) - 90;
+  _lon[i] = Math.random() * 360 - 180;
   _age[i]  = randomAge ? Math.random() : 0;
-  _life[i] = 4 + Math.random() * 5; // 4–9 seconds
+  _life[i] = 3 + Math.random() * 4; // 3–7 seconds
 }
 
 function _createCircleTexture() {
@@ -202,15 +177,13 @@ globeGroup.add(windParticles);
  * Each point must have: { lat, lon, current: { windSpeed (km/h), windDirection (deg) } }
  */
 export function buildWindField(points) {
-  // Collect valid wind observations
   const stations = [];
   for (const p of points) {
     const ws = p.current?.windSpeed;
     const wd = p.current?.windDirection;
     if (ws == null || wd == null) continue;
-    const speed_ms = ws / 3.6; // km/h → m/s
+    const speed_ms = ws / 3.6;
     const dir_rad  = wd * (Math.PI / 180);
-    // Meteorological "from" direction → wind component vectors
     const u = -speed_ms * Math.sin(dir_rad);
     const v = -speed_ms * Math.cos(dir_rad);
     stations.push({ lat: p.lat, lon: p.lon, u, v, speed: speed_ms });
@@ -223,7 +196,6 @@ export function buildWindField(points) {
     return;
   }
 
-  // Fill each grid cell using IDW
   for (let gy = 0; gy < GRID_H; gy++) {
     const cellLat = 90 - (gy / (GRID_H - 1)) * 180;
 
@@ -236,7 +208,6 @@ export function buildWindField(points) {
       for (const st of stations) {
         let dlat = cellLat - st.lat;
         let dlon = cellLon - st.lon;
-        // Wrap longitude
         if (dlon > 180)  dlon -= 360;
         if (dlon < -180) dlon += 360;
         const dist = Math.sqrt(dlat * dlat + dlon * dlon);
@@ -268,7 +239,6 @@ export function initWindParticles() {
   for (let i = 0; i < N; i++) {
     _resetParticle(i, true);
   }
-  // Initial position write so the buffer is populated before first frame
   _updatePositions(false);
 }
 
@@ -280,43 +250,34 @@ export function updateWindParticles(dt) {
   const posAttr   = _geometry.attributes.position;
   const colorAttr = _geometry.attributes.color;
 
-  // Dynamic zoom-based adjustments
+  // Particle size: smaller when zoomed in for visual consistency
   const camDist = camera.position.distanceTo(globeGroup.position);
-  // Update camera direction cache for zoom-bias respawning
-  _camDir.copy(camera.position).sub(globeGroup.position).normalize();
-  // Speed: faster when far (globe fully visible), slower when zoomed in
-  // Clamped: min 0.35× at very close zoom, max 2.0× at max distance
-  const speedMult = Math.min(Math.max(camDist / NOMINAL_CAM_DIST, 0.35), 2.0);
-  const effectiveScale = VIS_SPEED_SCALE * speedMult;
-  // Particle size: larger when zoomed in to compensate for fewer visible particles
-  const sizeMult = Math.min(Math.max(NOMINAL_CAM_DIST / camDist, 0.7), 2.2);
+  const sizeMult = Math.min(Math.max(camDist / NOMINAL_CAM_DIST, 0.35), 2.5);
   _material.size = BASE_PARTICLE_SIZE * sizeMult;
 
   for (let i = 0; i < N; i++) {
-    // Advance age
     _age[i] += dt / _life[i];
 
     if (_age[i] >= 1) {
-      // Respawn
       _resetParticle(i, false);
     }
 
     const lat = _lat[i];
     const lon = _lon[i];
 
-    // Sample wind field
     const { u, v, speed } = _sampleField(lat, lon);
 
-    // Advect: use visual speed scale (degrees/s per m/s) for visible movement
+    // Advect particle position
     const cosLat = Math.cos(lat * (Math.PI / 180));
-    const dlat = v * effectiveScale * dt;
-    const dlon = cosLat > 0.001 ? (u * effectiveScale / cosLat) * dt : 0;
+    const dlat = v * VIS_SPEED_SCALE * dt;
+    const dlon = cosLat > 0.001 ? (u * VIS_SPEED_SCALE / cosLat) * dt : 0;
 
     _lat[i] = Math.max(-89.9, Math.min(89.9, lat + dlat));
     _lon[i] = ((lon + dlon + 180) % 360 + 360) % 360 - 180;
 
-    // Compute 3D position
+    // Compute 3D position on sphere surface
     latLonToVector3(_lat[i], _lon[i], PARTICLE_RADIUS, _vec);
+
     const pi3 = i * 3;
     _positions[pi3]     = _vec.x;
     _positions[pi3 + 1] = _vec.y;
@@ -325,7 +286,6 @@ export function updateWindParticles(dt) {
     // Parabolic alpha fade: sin(π * age)
     const alpha = Math.sin(Math.PI * _age[i]);
 
-    // Color by wind speed, modulated by alpha
     _speedToColor(speed);
     _colors[pi3]     = _color.r * alpha;
     _colors[pi3 + 1] = _color.g * alpha;
