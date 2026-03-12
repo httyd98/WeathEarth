@@ -15,13 +15,13 @@ import { precipCanvas, precipTexture } from "./scene.js";
  *     • preserves the true intensity at each rain location        ✓
  *     • creates smooth, focused Gaussian blobs per event          ✓
  *
- * Colour scale (standard radar palette):
- *   0.05–1 mm/h   → light green   (drizzle)
- *   1–3   mm/h   → lime           (light rain)
- *   3–7   mm/h   → yellow         (moderate)
- *   7–15  mm/h   → orange         (heavy)
- *   15–30 mm/h   → red            (very heavy)
- *   >30   mm/h   → magenta        (extreme / storm)
+ * Colour scale:
+ *   0.05–1 mm/h   → azzurro  (drizzle — soft azure blue)
+ *   1–3   mm/h   → celeste   (light rain — bright cyan)
+ *   3–7   mm/h   → yellow    (moderate)
+ *   7–15  mm/h   → orange    (heavy)
+ *   15–30 mm/h   → red       (very heavy)
+ *   >30   mm/h   → magenta   (extreme / storm)
  *
  * Alpha: sqrt scale — 0.05 mm → ~15, 1 mm → ~100, 5 mm → ~220.
  */
@@ -39,8 +39,8 @@ export function buildPrecipitationCanvas(points) {
   const imageData = ctx.createImageData(W, H);
   const d = imageData.data;
 
-  // σ² = 100 (σ = 10°): visible blob radius ~20°, fades cleanly at edges
-  const SIGMA2 = 100;
+  // σ² = 64 (σ = 8°): tighter blobs, less overlap between nearby events
+  const SIGMA2 = 64;
 
   for (let py = 0; py < H; py++) {
     const lat = 90 - (py / H) * 180;
@@ -76,23 +76,23 @@ export function buildPrecipitationCanvas(points) {
       let r, g, b;
       const p = dominantPrecip;
       if (p < 1) {
-        // Drizzle: light green
+        // Drizzle: azzurro — pure blue, low green channel to avoid teal
         const f = (p - 0.05) / 0.95;
-        r = Math.round(30 + f * 30);
-        g = Math.round(190 + f * 40);
-        b = Math.round(60 - f * 30);
+        r = Math.round(40 - f * 10);   // 40 → 30
+        g = Math.round(100 + f * 60);  // 100 → 160
+        b = 255;
       } else if (p < 3) {
-        // Light rain: lime
+        // Light rain: celeste — transition blue → bright cyan
         const f = (p - 1) / 2;
-        r = Math.round(60 + f * 160);
-        g = Math.round(230 - f * 10);
-        b = Math.round(30 - f * 30);
+        r = Math.round(30 - f * 30);   // 30 → 0
+        g = Math.round(160 + f * 50);  // 160 → 210
+        b = 255;
       } else if (p < 7) {
-        // Moderate: yellow
+        // Moderate: yellow (transition from cyan → yellow)
         const f = (p - 3) / 4;
-        r = Math.round(220 + f * 35);
-        g = Math.round(220 - f * 80);
-        b = 0;
+        r = Math.round(f * 255);         // 0 → 255
+        g = Math.round(210 + f * 10);    // 210 → 220
+        b = Math.round(255 * (1 - f));   // 255 → 0
       } else if (p < 15) {
         // Heavy: orange
         const f = (p - 7) / 8;

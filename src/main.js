@@ -172,8 +172,9 @@ document.querySelectorAll("#cloud-switch .cloud-option").forEach(btn => {
       // Load actual satellite cloud imagery from NASA GIBS
       setStatus(t("status.satelliteLoading"));
       loadSatelliteCloudTexture()
-        .then(({ date }) => {
-          setStatus(t("status.satelliteLoaded", { date }));
+        .then(({ date, layer }) => {
+          const nrt = layer?.includes("_NRT") ? " · NRT" : "";
+          setStatus(t("status.satelliteLoaded", { date, nrt }));
         })
         .catch(() => {
           // Fallback: IDW interpolation from weather data

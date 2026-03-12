@@ -6,9 +6,16 @@
  * to extract cloud-only pixels with transparency, then applies the result as
  * a canvas texture to the Three.js cloud-cover mesh.
  *
- * Layers tried in order:
- *   1. VIIRS NOAA-20 True Color  — ~375m, daily composite
- *   2. MODIS Terra True Color     — ~500m, daily composite
+ * Layer priority:
+ *   NRT (Near-Real-Time) layers — updated within ~3 h of satellite overpass,
+ *   available same day. Tried first with today + yesterday.
+ *     1. VIIRS NOAA-20 NRT  (~375 m)
+ *     2. VIIRS SNPP NRT      (~375 m)
+ *     3. MODIS Terra NRT     (~500 m)
+ *     4. MODIS Aqua NRT      (~500 m)
+ *   Standard daily composites — fallback when NRT is unavailable (1-2 day delay).
+ *     5. VIIRS NOAA-20       (~375 m)
+ *     6. MODIS Terra         (~500 m)
  *
  * Cloud extraction: pixels that are bright (mean > 0.42) AND desaturated
  * (saturation < 0.38) are classified as cloud/snow/ice and kept in white;
@@ -20,24 +27,35 @@ import { cloudCoverCanvas, cloudCoverTexture } from "./scene.js";
 const GIBS_WMS =
   "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
 
-// Preferred → fallback layer order
-const LAYERS = [
-  "VIIRS_NOAA20_CorrectedReflectance_TrueColor",
-  "MODIS_Terra_CorrectedReflectance_TrueColor",
+/**
+ * Layer candidates in priority order.
+ * Each entry specifies the layer name and how many days back to try.
+ *   nDays=2  → try today + yesterday  (NRT: same-day available)
+ *   nDays=4  → try today … 3 days ago (standard: 1-2 day delay)
+ */
+const LAYER_CANDIDATES = [
+  // ── NRT layers (same-day, ~3 h post-overpass) ─────────────────────────────
+  { layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_NRT", nDays: 2 },
+  { layer: "VIIRS_SNPP_CorrectedReflectance_TrueColor_NRT",   nDays: 2 },
+  { layer: "MODIS_Terra_CorrectedReflectance_TrueColor_NRT",  nDays: 2 },
+  { layer: "MODIS_Aqua_CorrectedReflectance_TrueColor_NRT",   nDays: 2 },
+  // ── Standard daily composites (fallback, 1-2 day delay) ──────────────────
+  { layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor",     nDays: 4 },
+  { layer: "MODIS_Terra_CorrectedReflectance_TrueColor",      nDays: 4 },
 ];
 
-// Fetch width/height — kept moderate for fast download while still sharp on globe
-const FETCH_W = 1024;
-const FETCH_H = 512;
+// Higher resolution for sharper cloud detail on the globe
+const FETCH_W = 2048;
+const FETCH_H = 1024;
 
 /**
- * Returns ISO date strings for the last N days (most recent first).
- * GIBS composites can take 1-2 days to appear, so we try yesterday first.
+ * Returns ISO date strings starting from today (UTC) for n days.
+ * Index 0 = today, 1 = yesterday, etc.
  */
-function candidateDates(n = 3) {
+function candidateDates(n) {
   return Array.from({ length: n }, (_, i) => {
     const d = new Date();
-    d.setUTCDate(d.getUTCDate() - (i + 1));
+    d.setUTCDate(d.getUTCDate() - i);
     return d.toISOString().slice(0, 10);
   });
 }
@@ -127,13 +145,13 @@ function extractAndApplyClouds({ img }) {
 }
 
 /**
- * Try all layer × date combinations until one succeeds.
+ * Try all layer × date combinations in priority order until one succeeds.
+ * NRT layers (same-day) are tried before standard composites.
  * Resolves with `{ layer, date }` on success, rejects if all fail.
  */
 export async function loadSatelliteCloudTexture() {
-  const dates = candidateDates(3);
-  for (const layer of LAYERS) {
-    for (const date of dates) {
+  for (const { layer, nDays } of LAYER_CANDIDATES) {
+    for (const date of candidateDates(nDays)) {
       try {
         const result = await fetchGibsImage(layer, date);
         extractAndApplyClouds(result);
@@ -143,5 +161,5 @@ export async function loadSatelliteCloudTexture() {
       }
     }
   }
-  throw new Error("No GIBS satellite imagery available for the past 3 days");
+  throw new Error("No GIBS satellite imagery available");
 }
