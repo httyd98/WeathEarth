@@ -23,7 +23,8 @@
       "Bash(git add index.html src/constants.js src/globe/scene.js src/globe/shaders.js src/globe/precipitationLayer.js src/globe/satelliteCloudLayer.js src/main.js src/providers.js src/state.js src/style.css src/styles/controls.css src/styles/sidebar.css src/ui/index.js src/utils.js src/weather/api.js src/weather/cache.js src/i18n.js)",
       "Bash(git add src/globe/precipitationLayer.js src/globe/satelliteCloudLayer.js src/i18n.js src/main.js)",
       "Bash(git add -p -- src/globe/rainViewer.js src/globe/windParticles.js src/ui/modeBar.js src/state.js src/i18n.js)",
-      "Bash(git add index.html src/globe/precipitationLayer.js src/i18n.js src/main.js src/state.js src/styles/sidebar.css src/ui/index.js src/weather/api.js src/globe/rainViewer.js src/globe/windParticles.js src/ui/modeBar.js)"
+      "Bash(git add index.html src/globe/precipitationLayer.js src/i18n.js src/main.js src/state.js src/styles/sidebar.css src/ui/index.js src/weather/api.js src/globe/rainViewer.js src/globe/windParticles.js src/ui/modeBar.js)",
+      "Bash(git add index.html src/globe/windParticles.js src/globe/skyBackground.js src/globe/timeZoneLayer.js src/i18n.js src/main.js src/state.js src/styles/sidebar.css src/ui/index.js)"
     ]
   }
 }
