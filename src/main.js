@@ -1,4 +1,5 @@
 import "./style.css";
+import * as THREE from "three";
 
 // State & constants
 import { weatherState, interactionState, dom } from "./state.js";
@@ -12,9 +13,9 @@ import {
   renderer, scene, camera, controls, globeGroup,
   earth, clouds, heatmapMesh, cloudCoverMesh, precipMesh,
   pointer, raycaster,
-  initMarkers, equatorialRing
+  initMarkers, equatorialRing, starField
 } from "./globe/scene.js";
-import { applyLightingMode, updateSunDirection } from "./globe/lighting.js";
+import { applyLightingMode, updateSunDirection, getSunDirection } from "./globe/lighting.js";
 import { updateMarkerMeshes, updateMarkerVisibility, buildHeatmapCanvas, updateSelectedMarker } from "./globe/markers.js";
 import { buildCloudCanvas } from "./globe/cloudLayer.js";
 import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
@@ -23,6 +24,7 @@ import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh 
 import { buildWindField, updateWindParticles, initWindParticles, windParticles } from "./globe/windParticles.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
 import { initMoon, updateMoon } from "./globe/moonLayer.js";
+import { initSkyBackground, updateSkyRotation } from "./globe/skyBackground.js";
 
 // UI — mode bar
 import { initModeBar } from "./ui/modeBar.js";
@@ -144,6 +146,9 @@ initWindParticles();
 // Initialize moon with real astronomical position
 initMoon(scene);
 
+// Initialize photorealistic sky background (replaces particle starfield)
+initSkyBackground(scene, starField);
+
 // On each successful global weather refresh: rebuild wind field + update toggle labels
 setOnWeatherRefreshed(() => {
   buildWindField(weatherState.points);
@@ -170,34 +175,62 @@ initModeBar({
 // Earth axial tilt: 23.44 degrees = 0.40928 radians
 const EARTH_TILT_RAD = 23.44 * Math.PI / 180;
 
-function _getTiltTargetZ(mode) {
-  if (mode === "none") return 0;
-  if (mode === "simple") return EARTH_TILT_RAD;
-  if (mode === "seasonal") {
-    // Seasonal tilt: direction changes with time of year.
-    // Summer solstice (≈day 172, June 21): north pole tilts +23.44° (toward sun projection on XZ).
-    // Winter solstice (≈day 355, Dec 21): north pole tilts -23.44°.
-    // Equinoxes: ~0°.
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const dayOfYear = Math.round((now - start) / 86400000);
-    // Cosine gives +1 at summer solstice (day 172), -1 at winter solstice
-    const angle = ((dayOfYear - 172) / 365) * 2 * Math.PI;
-    return EARTH_TILT_RAD * Math.cos(angle);
+// Target quaternion for smooth tilt animation — written by _computeTiltQuat()
+const _targetQuat = new THREE.Quaternion();
+
+/**
+ * Compute and store in _targetQuat the target orientation for the globe given tiltMode.
+ *
+ * "simple"   — fixed 23.44° tilt around Z-axis (north pole tilts visually to the right).
+ *              Always the same visible appearance regardless of time of year.
+ *
+ * "seasonal" — full 23.44° tilt with the axis oriented in the correct astronomical direction:
+ *              the north pole tilts TOWARD the sun at summer solstice and AWAY at winter solstice.
+ *              Near equinoxes the axis is perpendicular to the sun-Earth line (sideways tilt),
+ *              which correctly shows equal day/night. The tilt magnitude is ALWAYS 23.44°.
+ *
+ * "none"     — identity (upright globe).
+ */
+function _computeTiltQuat(mode) {
+  if (mode === "none") {
+    _targetQuat.identity();
+    return;
   }
-  return 0;
+  if (mode === "simple") {
+    // Fixed tilt: rotate globe around Z-axis by 23.44° (north pole tilts right)
+    _targetQuat.setFromEuler(new THREE.Euler(0, 0, EARTH_TILT_RAD));
+    return;
+  }
+  if (mode === "seasonal") {
+    // True astronomical tilt: north pole tilted 23.44° toward the current sun direction.
+    // The tilt axis is the cross product of Y+ (north) and the sun's XZ projection.
+    const sunDir = getSunDirection(new Date());
+    const sunXZ = new THREE.Vector3(sunDir.x, 0, sunDir.z);
+    const len = sunXZ.length();
+    if (len < 0.001) {
+      // Sun directly above/below — degenerate, keep current
+      return;
+    }
+    sunXZ.divideScalar(len);
+    // tiltAxis = cross(Y, sunXZ) = [sunXZ.z, 0, -sunXZ.x]
+    // Rotating around this axis by EARTH_TILT_RAD tilts north pole toward the sun.
+    const tiltAxis = new THREE.Vector3(sunXZ.z, 0, -sunXZ.x);
+    _targetQuat.setFromAxisAngle(tiltAxis, EARTH_TILT_RAD);
+    return;
+  }
+  _targetQuat.identity();
 }
 
 function handleToggleTiltSimple() {
   weatherState.tiltMode = weatherState.tiltMode === "simple" ? "none" : "simple";
-  weatherState.globeTargetTiltZ = _getTiltTargetZ(weatherState.tiltMode);
+  _computeTiltQuat(weatherState.tiltMode);
   equatorialRing.visible = weatherState.tiltMode !== "none";
   updateToggleButtons();
 }
 
 function handleToggleTiltSeasonal() {
   weatherState.tiltMode = weatherState.tiltMode === "seasonal" ? "none" : "seasonal";
-  weatherState.globeTargetTiltZ = _getTiltTargetZ(weatherState.tiltMode);
+  _computeTiltQuat(weatherState.tiltMode);
   equatorialRing.visible = weatherState.tiltMode !== "none";
   updateToggleButtons();
 }
@@ -343,11 +376,16 @@ let _moonUpdateCounter = 0;
 window.setInterval(() => {
   updateSunDirection();
   updateRefreshCountdown();
+  // Keep seasonal tilt axis in sync with the moving sun (sun moves ~0.25°/min)
+  if (weatherState.tiltMode === "seasonal") {
+    _computeTiltQuat("seasonal");
+  }
   // Update moon position every 60 seconds (moon moves slowly)
   _moonUpdateCounter++;
   if (_moonUpdateCounter >= 60) {
     _moonUpdateCounter = 0;
     updateMoon(new Date());
+    updateSkyRotation(new Date());
   }
 }, 1000);
 window.setInterval(() => {
@@ -376,13 +414,8 @@ function animate() {
     globeGroup.position.x += dx * 0.06;
   }
 
-  // Smooth axial tilt animation
-  const dz = weatherState.globeTargetTiltZ - globeGroup.rotation.z;
-  if (Math.abs(dz) > 0.0002) {
-    globeGroup.rotation.z += dz * 0.04;
-  } else {
-    globeGroup.rotation.z = weatherState.globeTargetTiltZ;
-  }
+  // Smooth axial tilt animation via quaternion slerp
+  globeGroup.quaternion.slerp(_targetQuat, 0.04);
 
   controls.update();
   renderer.render(scene, camera);

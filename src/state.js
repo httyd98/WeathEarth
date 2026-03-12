@@ -78,7 +78,6 @@ export const weatherState = {
   showSettings: true,
   globeTargetX: 1.6,
   tiltMode: "none",
-  globeTargetTiltZ: 0,
   summaryStats: null,
   lastDistanceForScale: null,
   language: localStorage.getItem('terracast:language') ?? 'it'

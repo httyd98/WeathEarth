@@ -8,13 +8,12 @@ import * as THREE from "three";
 import { GLOBE_RADIUS } from "../constants.js";
 import { getMoonPositionECI, getLunarPhase } from "./astronomy.js";
 
-// Moon scale: GLOBE_RADIUS * 60 Earth-radii distance, GLOBE_RADIUS * 0.2727 radius
-const MOON_DISTANCE_SCALE = 60.0; // Earth radii to world units multiplier = GLOBE_RADIUS
-const MOON_WORLD_DISTANCE  = GLOBE_RADIUS * MOON_DISTANCE_SCALE; // ~252
-const MOON_WORLD_RADIUS    = GLOBE_RADIUS * 0.2727;              // ~1.145
-
-// Suppress unused variable warning — MOON_WORLD_DISTANCE is for documentation purposes
-void MOON_WORLD_DISTANCE;
+// Moon scale:
+// Distance: GLOBE_RADIUS * 60 Earth-radii (real scale, ~252 world units)
+// Radius: scaled up 5× real for clear visibility (real angular size is only ~0.5°)
+const MOON_DISTANCE_SCALE = 60.0;
+const MOON_WORLD_DISTANCE  = GLOBE_RADIUS * MOON_DISTANCE_SCALE; // ~252 — within camera.far=500
+const MOON_WORLD_RADIUS    = GLOBE_RADIUS * 1.35;                // 5× real → ~2.5° angular dia.
 
 // Create moon geometry + material
 // We use a simple gray sphere with a procedural normal-looking texture
@@ -61,6 +60,9 @@ function _createMoonMaterial() {
     roughness: 0.92,
     metalness: 0.0,
     color: 0xcccccc,
+    emissive: new THREE.Color(0x222222),  // slight self-glow — visible even in shadow
+    emissiveIntensity: 0.25,
+    fog: false,                            // don't let FogExp2 hide the moon at ~252 units
   });
 }
 

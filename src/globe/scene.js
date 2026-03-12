@@ -149,7 +149,7 @@ precipMesh.renderOrder = 6;
 precipMesh.visible = false;
 globeGroup.add(precipMesh);
 
-const starField = createStarField();
+export const starField = createStarField();
 scene.add(starField);
 
 // Equatorial ring — visible when axial tilt is active
