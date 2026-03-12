@@ -260,6 +260,134 @@
   display: none;
 }
 
+/* ── Accordion items (details/summary) ───────────────────────────────────── */
+
+/* Reset default browser summary marker */
+.accordion-item > summary {
+  list-style: none;
+}
+.accordion-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.accordion-item {
+  margin: 0;
+  padding: 0;
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  background: rgba(8, 17, 38, 0.92);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.accordion-header:hover {
+  background: rgba(18, 34, 68, 0.95);
+  transform: none;
+}
+
+details[open] > .accordion-header {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.acc-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.acc-label {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.acc-arrow {
+  font-size: 0.75rem;
+  color: var(--muted);
+  transition: transform 0.25s ease;
+  line-height: 1;
+}
+
+details[open] > .accordion-header .acc-arrow {
+  transform: rotate(180deg);
+}
+
+.accordion-body {
+  border: 1px solid var(--panel-border);
+  border-top: none;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  padding: 12px 12px 14px;
+  background: rgba(5, 11, 26, 0.88);
+}
+
+/* When accordion-body also has sidebar-buttons class, fix margin-top */
+.accordion-body.sidebar-buttons {
+  display: grid;
+  gap: 8px;
+  margin-top: 0;
+}
+
+/* Impostazioni accordion — give inner controls some spacing */
+.accordion-body > label.label-block {
+  margin-top: 12px;
+  display: block;
+}
+
+.accordion-body > label.label-block:first-child {
+  margin-top: 4px;
+}
+
+.accordion-body > select {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+/* ── Stats grid inside Statistiche accordion ──────────────────────────────── */
+
+.sidebar-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+  padding: 4px 0;
+  margin: 0;
+}
+
+.sidebar-stats-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-stats-grid dt {
+  font-size: 0.69rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-stats-grid dd {
+  font-size: 0.9rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  margin: 0;
+}
+
 /* Responsive */
 @media (max-width: 960px) {
   .right-sidebar {

@@ -21,7 +21,8 @@ import { buildCloudCanvas } from "./globe/cloudLayer.js";
 import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
 import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
 import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh } from "./globe/rainViewer.js";
-import { buildWindField, updateWindParticles, initWindParticles, windParticles } from "./globe/windParticles.js";
+import { buildWindField, updateWindParticles, initWindParticles, windParticles, isWindFieldEmpty } from "./globe/windParticles.js";
+import { timeZoneMesh, buildTimeZoneCanvas, updateTimeZoneLayer } from "./globe/timeZoneLayer.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
 import { initMoon, updateMoon } from "./globe/moonLayer.js";
 import { initSkyBackground, updateSkyRotation } from "./globe/skyBackground.js";
@@ -235,6 +236,16 @@ function handleToggleTiltSeasonal() {
   updateToggleButtons();
 }
 
+function handleToggleTimeZones() {
+  weatherState.showTimeZones = !weatherState.showTimeZones;
+  timeZoneMesh.visible = weatherState.showTimeZones;
+  if (weatherState.showTimeZones) {
+    buildTimeZoneCanvas(new Date());
+  }
+  dom.toggleTimeZonesButton?.classList.toggle("active", weatherState.showTimeZones);
+  updateToggleButtons();
+}
+
 // Must be declared BEFORE animate() is called to avoid temporal dead zone error
 let _lastFrameTime = performance.now();
 
@@ -262,6 +273,7 @@ dom.toggleMarkersButton.addEventListener("click", handleToggleMarkers);
 dom.toggleTerminatorButton.addEventListener("click", handleToggleTerminator);
 dom.toggleTiltSimpleButton?.addEventListener("click", handleToggleTiltSimple);
 dom.toggleTiltSeasonalButton?.addEventListener("click", handleToggleTiltSeasonal);
+dom.toggleTimeZonesButton?.addEventListener("click", handleToggleTimeZones);
 
 // Sidebar toggle
 dom.sidebarToggle.addEventListener("click", () => {
@@ -314,6 +326,10 @@ dom.toggleHeatmapButton?.addEventListener("click", () => {
 dom.toggleWindButton?.addEventListener("click", () => {
   weatherState.showWind = !weatherState.showWind;
   windParticles.visible = weatherState.showWind;
+  // Rebuild field on demand if no data yet (e.g., enabled before first refresh)
+  if (weatherState.showWind && isWindFieldEmpty()) {
+    buildWindField(weatherState.points);
+  }
   dom.toggleWindButton.classList.toggle("active", weatherState.showWind);
   updateToggleButtons();
 });
@@ -362,17 +378,11 @@ dom.languageSelect.addEventListener("change", () => {
   }
 });
 
-// Settings collapse
-dom.toggleSettingsButton.addEventListener("click", () => {
-  weatherState.showSettings = !weatherState.showSettings;
-  dom.settingsContent.hidden = !weatherState.showSettings;
-  dom.toggleSettingsButton.querySelector("span").textContent = weatherState.showSettings ? "\u25BE" : "\u25B8";
-});
-
 // Initial data fetch
 refreshGlobalWeather(false, samplePoints, summaryPoints);
 requestCurrentLocationSelection(false);
 let _moonUpdateCounter = 0;
+let _tzUpdateCounter = 0;
 window.setInterval(() => {
   updateSunDirection();
   updateRefreshCountdown();
@@ -386,6 +396,12 @@ window.setInterval(() => {
     _moonUpdateCounter = 0;
     updateMoon(new Date());
     updateSkyRotation(new Date());
+  }
+  // Refresh time zone canvas every 30 seconds when visible
+  _tzUpdateCounter++;
+  if (_tzUpdateCounter >= 30) {
+    _tzUpdateCounter = 0;
+    updateTimeZoneLayer();
   }
 }, 1000);
 window.setInterval(() => {

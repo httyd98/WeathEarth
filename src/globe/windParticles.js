@@ -1,7 +1,7 @@
 /**
  * Wind Particle System
  *
- * Animates 50,000 massless particles advected by a 128×64 IDW wind field
+ * Animates 60,000 massless particles advected by a 128×64 IDW wind field
  * interpolated from weather station data. Particles are displayed as
  * additive-blended points on the sphere surface, colored by wind speed.
  *
@@ -10,7 +10,7 @@
  */
 
 import * as THREE from "three";
-import { globeGroup } from "./scene.js";
+import { globeGroup, camera } from "./scene.js";
 import { GLOBE_RADIUS } from "../constants.js";
 import { latLonToVector3 } from "../utils.js";
 
@@ -20,15 +20,21 @@ const GRID_H = 64;
 const GRID_SIZE = GRID_W * GRID_H;
 
 // Particle count
-const N = 50_000;
+const N = 60_000;
 
 // VISUAL scale: how many degrees of lat/lon to move per second per m/s of wind speed
 // Physical would be 1/111320 ≈ 0.000009, but that's invisible.
-// Use 0.4 degrees/s per m/s for a visible, comprehensible effect.
-const VIS_SPEED_SCALE = 0.4;
+// Use 1.2 degrees/s per m/s for a visible, comprehensible effect.
+const VIS_SPEED_SCALE = 1.2;
 
 // Particle surface radius (just above the globe)
 const PARTICLE_RADIUS = GLOBE_RADIUS * 1.042;
+
+// Typical camera distance (used for zoom-based scaling)
+const NOMINAL_CAM_DIST = 12.0;
+
+// Base particle size (replaces hardcoded 0.009)
+const BASE_PARTICLE_SIZE = 0.016;
 
 // IDW power parameter
 const IDW_P = 2;
@@ -52,6 +58,9 @@ const _colors    = new Float32Array(N * 3);
 
 // Scratch vector for latLonToVector3
 const _vec = new THREE.Vector3();
+
+// Cached camera-facing direction for zoom-bias respawning
+const _camDir = new THREE.Vector3(0, 0, 1);
 
 // Color palette by wind speed (m/s)
 // 0→3 = blue, 3→8 = cyan, 8→15 = green, 15→20 = yellow, 20→30 = orange, >30 = red
@@ -128,10 +137,25 @@ function _sampleField(lat, lon) {
 
 /** Reset a single particle to a random position with staggered age. */
 function _resetParticle(i, randomAge) {
-  _lat[i]  = Math.random() * 180 - 90;
-  _lon[i]  = Math.random() * 360 - 180;
+  const camDist = camera.position.distanceTo(globeGroup.position);
+  // Zoom bias: when close (camDist < NOMINAL_CAM_DIST), 80% of particles
+  // respawn in the camera-facing hemisphere to maintain visible density.
+  const zoomBias = Math.max(0, 1.0 - camDist / (NOMINAL_CAM_DIST * 1.4));
+  if (zoomBias > 0.05 && Math.random() < zoomBias * 0.8) {
+    // Spawn in camera-facing hemisphere
+    let attempts = 0;
+    do {
+      _lat[i] = Math.random() * 180 - 90;
+      _lon[i] = Math.random() * 360 - 180;
+      latLonToVector3(_lat[i], _lon[i], 1, _vec);
+      attempts++;
+    } while (_vec.dot(_camDir) < 0.2 && attempts < 15);
+  } else {
+    _lat[i] = Math.random() * 180 - 90;
+    _lon[i] = Math.random() * 360 - 180;
+  }
   _age[i]  = randomAge ? Math.random() : 0;
-  _life[i] = 6 + Math.random() * 8; // 6–14 seconds
+  _life[i] = 4 + Math.random() * 5; // 4–9 seconds
 }
 
 function _createCircleTexture() {
@@ -157,7 +181,7 @@ _geometry.setAttribute("position", new THREE.BufferAttribute(_positions, 3).setU
 _geometry.setAttribute("color",    new THREE.BufferAttribute(_colors,    3).setUsage(THREE.DynamicDrawUsage));
 
 const _material = new THREE.PointsMaterial({
-  size: 0.009,
+  size: BASE_PARTICLE_SIZE,
   vertexColors: true,
   transparent: true,
   opacity: 0.9,
@@ -256,6 +280,18 @@ export function updateWindParticles(dt) {
   const posAttr   = _geometry.attributes.position;
   const colorAttr = _geometry.attributes.color;
 
+  // Dynamic zoom-based adjustments
+  const camDist = camera.position.distanceTo(globeGroup.position);
+  // Update camera direction cache for zoom-bias respawning
+  _camDir.copy(camera.position).sub(globeGroup.position).normalize();
+  // Speed: faster when far (globe fully visible), slower when zoomed in
+  // Clamped: min 0.35× at very close zoom, max 2.0× at max distance
+  const speedMult = Math.min(Math.max(camDist / NOMINAL_CAM_DIST, 0.35), 2.0);
+  const effectiveScale = VIS_SPEED_SCALE * speedMult;
+  // Particle size: larger when zoomed in to compensate for fewer visible particles
+  const sizeMult = Math.min(Math.max(NOMINAL_CAM_DIST / camDist, 0.7), 2.2);
+  _material.size = BASE_PARTICLE_SIZE * sizeMult;
+
   for (let i = 0; i < N; i++) {
     // Advance age
     _age[i] += dt / _life[i];
@@ -273,8 +309,8 @@ export function updateWindParticles(dt) {
 
     // Advect: use visual speed scale (degrees/s per m/s) for visible movement
     const cosLat = Math.cos(lat * (Math.PI / 180));
-    const dlat = v * VIS_SPEED_SCALE * dt;
-    const dlon = cosLat > 0.001 ? (u * VIS_SPEED_SCALE / cosLat) * dt : 0;
+    const dlat = v * effectiveScale * dt;
+    const dlon = cosLat > 0.001 ? (u * effectiveScale / cosLat) * dt : 0;
 
     _lat[i] = Math.max(-89.9, Math.min(89.9, lat + dlat));
     _lon[i] = ((lon + dlon + 180) % 360 + 360) % 360 - 180;
@@ -316,4 +352,12 @@ function _updatePositions(withColor) {
   }
   _geometry.attributes.position.needsUpdate = true;
   if (withColor) _geometry.attributes.color.needsUpdate = true;
+}
+
+/** Returns true if the wind field has no data (all zeros). */
+export function isWindFieldEmpty() {
+  for (let i = 0; i < 100; i++) {
+    if (_fieldSpeed[i] > 0) return false;
+  }
+  return true;
 }

@@ -64,6 +64,8 @@ const translations = {
     "btn.tiltSimpleOff":       "Asse fisso: attivo",
     "btn.tiltSeasonal":        "Asse solare (stagionale)",
     "btn.tiltSeasonalOff":     "Asse solare: attivo",
+    "btn.timeZones":           "Orari globali",
+    "btn.hideTimeZones":       "Nascondi orari globali",
     "btn.language": "Lingua: {lang}",
     "btn.langIt": "Italiano",
     "btn.langEn": "English",
@@ -73,7 +75,14 @@ const translations = {
     "clouds.aesthetic": "Estetiche",
     "clouds.real": "Reali",
 
-    // Sidebar groups
+    // Sidebar accordion categories
+    "cat.meteo": "Meteo",
+    "cat.astronomia": "Astronomia",
+    "cat.situazioni": "Situazioni",
+    "cat.statistiche": "Statistiche",
+    "cat.impostazioni": "Impostazioni",
+
+    // Sidebar groups (legacy)
     "sidebar.display": "Visualizzazione",
     "sidebar.weather": "Dati Meteo",
 
@@ -258,6 +267,8 @@ const translations = {
     "btn.tiltSimpleOff":       "Fixed axis: on",
     "btn.tiltSeasonal":        "Solar axis (seasonal)",
     "btn.tiltSeasonalOff":     "Solar axis: on",
+    "btn.timeZones":           "Global time zones",
+    "btn.hideTimeZones":       "Hide time zones",
     "btn.language": "Language: {lang}",
     "btn.langIt": "Italiano",
     "btn.langEn": "English",
@@ -267,7 +278,14 @@ const translations = {
     "clouds.aesthetic": "Aesthetic",
     "clouds.real": "Real",
 
-    // Sidebar groups
+    // Sidebar accordion categories
+    "cat.meteo": "Weather",
+    "cat.astronomia": "Astronomy",
+    "cat.situazioni": "Events",
+    "cat.statistiche": "Statistics",
+    "cat.impostazioni": "Settings",
+
+    // Sidebar groups (legacy)
     "sidebar.display": "Display",
     "sidebar.weather": "Weather Data",
 

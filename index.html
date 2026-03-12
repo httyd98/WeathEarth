@@ -30,42 +30,28 @@
 						geolocalizzazione browser.
 					</p>
 					<div class="chips">
-						<span class="chip" data-i18n="chip.drag"
-							>Drag per orbitare</span
-						>
-						<span class="chip" data-i18n="chip.click"
-							>Click per selezionare</span
-						>
-						<span class="chip" data-i18n="chip.scroll"
-							>Rotella per zoom</span
-						>
+						<span class="chip" data-i18n="chip.drag">Drag per orbitare</span>
+						<span class="chip" data-i18n="chip.click">Click per selezionare</span>
+						<span class="chip" data-i18n="chip.scroll">Rotella per zoom</span>
 					</div>
 				</div>
 
 				<div class="panel metrics-panel">
 					<div class="metrics-grid">
 						<div>
-							<p class="label" data-i18n="metrics.lastRefresh">
-								Ultimo refresh
-							</p>
+							<p class="label" data-i18n="metrics.lastRefresh">Ultimo refresh</p>
 							<p id="last-refresh" class="value">In attesa...</p>
 						</div>
 						<div>
-							<p class="label" data-i18n="metrics.nextRefresh">
-								Prossimo refresh
-							</p>
+							<p class="label" data-i18n="metrics.nextRefresh">Prossimo refresh</p>
 							<p id="next-refresh" class="value">-</p>
 						</div>
 						<div>
-							<p class="label" data-i18n="metrics.stations">
-								Punti meteo
-							</p>
+							<p class="label" data-i18n="metrics.stations">Punti meteo</p>
 							<p id="station-count" class="value">0</p>
 						</div>
 						<div>
-							<p class="label" data-i18n="metrics.avgTemp">
-								Temperatura media
-							</p>
+							<p class="label" data-i18n="metrics.avgTemp">Temperatura media</p>
 							<p id="avg-temp" class="value">-</p>
 						</div>
 					</div>
@@ -78,73 +64,27 @@
 
 				<div class="panel details-panel">
 					<div class="section-heading">
-						<p class="eyebrow" data-i18n="selection.eyebrow">
-							Punto selezionato
-						</p>
-						<p id="selection-name" class="section-title">
-							Nessun punto selezionato
-						</p>
+						<p class="eyebrow" data-i18n="selection.eyebrow">Punto selezionato</p>
+						<p id="selection-name" class="section-title">Nessun punto selezionato</p>
 					</div>
 					<dl class="details-grid">
-						<div>
-							<dt data-i18n="selection.condition">Condizione</dt>
-							<dd id="selection-condition">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.temperature">
-								Temperatura
-							</dt>
-							<dd id="selection-temperature">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.wind">Vento</dt>
-							<dd id="selection-wind">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.humidity">Umidità</dt>
-							<dd id="selection-humidity">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.cloudCover">
-								Copertura nuvole
-							</dt>
-							<dd id="selection-cloud-cover">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.precipitation">
-								Precipitazioni
-							</dt>
-							<dd id="selection-precipitation">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.pressure">Pressione</dt>
-							<dd id="selection-pressure">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.coordinates">
-								Coordinate
-							</dt>
-							<dd id="selection-coordinates">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.daylight">Fase solare</dt>
-							<dd id="selection-daylight">-</dd>
-						</div>
-						<div>
-							<dt data-i18n="selection.provider">Provider</dt>
-							<dd id="selection-provider">-</dd>
-						</div>
+						<div><dt data-i18n="selection.condition">Condizione</dt><dd id="selection-condition">-</dd></div>
+						<div><dt data-i18n="selection.temperature">Temperatura</dt><dd id="selection-temperature">-</dd></div>
+						<div><dt data-i18n="selection.wind">Vento</dt><dd id="selection-wind">-</dd></div>
+						<div><dt data-i18n="selection.humidity">Umidità</dt><dd id="selection-humidity">-</dd></div>
+						<div><dt data-i18n="selection.cloudCover">Copertura nuvole</dt><dd id="selection-cloud-cover">-</dd></div>
+						<div><dt data-i18n="selection.precipitation">Precipitazioni</dt><dd id="selection-precipitation">-</dd></div>
+						<div><dt data-i18n="selection.pressure">Pressione</dt><dd id="selection-pressure">-</dd></div>
+						<div><dt data-i18n="selection.coordinates">Coordinate</dt><dd id="selection-coordinates">-</dd></div>
+						<div><dt data-i18n="selection.daylight">Fase solare</dt><dd id="selection-daylight">-</dd></div>
+						<div><dt data-i18n="selection.provider">Provider</dt><dd id="selection-provider">-</dd></div>
 					</dl>
 				</div>
 
 				<div class="panel forecast-panel">
 					<div class="section-heading">
-						<p class="eyebrow" data-i18n="forecast.eyebrow">
-							Previsioni
-						</p>
-						<p class="section-title" data-i18n="forecast.title">
-							Località selezionata
-						</p>
+						<p class="eyebrow" data-i18n="forecast.eyebrow">Previsioni</p>
+						<p class="section-title" data-i18n="forecast.title">Località selezionata</p>
 					</div>
 					<div id="forecast-list" class="forecast-list">
 						<p class="provider-note" data-i18n="forecast.empty">
@@ -155,12 +95,8 @@
 
 				<div class="panel legend-panel">
 					<div class="section-heading">
-						<p class="eyebrow" data-i18n="legend.eyebrow">
-							Legenda
-						</p>
-						<p class="section-title" data-i18n="legend.title">
-							Temperatura dei marker
-						</p>
+						<p class="eyebrow" data-i18n="legend.eyebrow">Legenda</p>
+						<p class="section-title" data-i18n="legend.title">Temperatura dei marker</p>
 					</div>
 					<div class="legend-bar" aria-hidden="true"></div>
 					<div class="legend-scale">
@@ -177,6 +113,7 @@
 				</div>
 			</aside>
 
+			<!-- ── Right sidebar (accordion categories) ── -->
 			<aside id="right-sidebar" class="right-sidebar collapsed">
 				<button
 					id="sidebar-toggle"
@@ -188,249 +125,131 @@
 				</button>
 
 				<div class="sidebar-content">
-					<!-- Mode bar: Ora / Modelli -->
+					<!-- Mode bar: Ora / Modelli — always visible at top -->
 					<div class="panel sidebar-group mode-bar">
 						<div class="mode-switch">
-							<button
-								id="mode-realtime-btn"
-								class="mode-option active"
-								type="button"
-								data-i18n="mode.realtime"
-							>
-								Ora
-							</button>
-							<button
-								id="mode-forecast-btn"
-								class="mode-option"
-								type="button"
-								data-i18n="mode.forecast"
-							>
-								Modelli
-							</button>
+							<button id="mode-realtime-btn" class="mode-option active" type="button" data-i18n="mode.realtime">Ora</button>
+							<button id="mode-forecast-btn" class="mode-option"        type="button" data-i18n="mode.forecast">Modelli</button>
 						</div>
 						<div id="model-selector-row" class="model-selector-row" hidden>
-							<button data-model="auto" class="model-option active" type="button">Auto</button>
-							<button data-model="gfs" class="model-option" type="button">GFS</button>
-							<button data-model="icon" class="model-option" type="button">ICON</button>
-							<button data-model="meteofrance" class="model-option" type="button">MF</button>
-							<button data-model="gem" class="model-option" type="button">GEM</button>
+							<button data-model="auto"        class="model-option active" type="button">Auto</button>
+							<button data-model="gfs"         class="model-option"        type="button">GFS</button>
+							<button data-model="icon"        class="model-option"        type="button">ICON</button>
+							<button data-model="meteofrance" class="model-option"        type="button">MF</button>
+							<button data-model="gem"         class="model-option"        type="button">GEM</button>
 						</div>
 						<div id="forecast-time-row" class="forecast-time-row" hidden>
-							<input
-								id="forecast-time-slider"
-								type="range"
-								min="0"
-								max="72"
-								step="1"
-								value="0"
-							/>
+							<input id="forecast-time-slider" type="range" min="0" max="72" step="1" value="0"/>
 							<span id="forecast-time-label" class="forecast-time-label">Ora attuale</span>
 						</div>
 					</div>
 
-					<!-- Group 1: Display features -->
-					<div class="panel sidebar-group">
-						<div class="section-heading">
-							<p class="eyebrow" data-i18n="sidebar.display">
-								Visualizzazione
-							</p>
-						</div>
-						<div class="sidebar-buttons">
-							<button
-								id="toggle-markers-button"
-								class="feature-button"
-								type="button"
-							>
-								Nascondi punti meteo
-							</button>
-							<button
-								id="toggle-terminator-button"
-								class="feature-button"
-								type="button"
-							>
-								Nascondi giorno/notte
-							</button>
-							<button
-								id="toggle-heatmap-button"
-								class="feature-button"
-								type="button"
-							>
-								Heatmap temperatura
-							</button>
-							<button
-								id="toggle-wind-button"
-								class="feature-button"
-								type="button"
-							>
-								Vento (particelle)
-							</button>
-							<button
-								id="toggle-tilt-simple-button"
-								class="feature-button"
-								type="button"
-							>
-								Inclinazione 23.4°
-							</button>
-							<button
-								id="toggle-tilt-seasonal-button"
-								class="feature-button"
-								type="button"
-							>
-								Inclinazione stagionale
-							</button>
-						</div>
-					</div>
-
-					<!-- Group 2: Weather features -->
-					<div class="panel sidebar-group">
-						<div class="section-heading">
-							<p class="eyebrow" data-i18n="sidebar.weather">
-								Dati Meteo
-							</p>
-						</div>
-						<div class="sidebar-buttons">
+					<!-- ── Meteo ── -->
+					<details class="accordion-item" open>
+						<summary class="accordion-header">
+							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 5.5 5.5 0 0 1 10.5 2A3.5 3.5 0 0 1 14 14H5Z"/></svg>
+							<span class="acc-label" data-i18n="cat.meteo">Meteo</span>
+							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+						</summary>
+						<div class="accordion-body sidebar-buttons">
 							<div id="cloud-switch" class="cloud-switch">
-								<button
-									data-cloud="off"
-									class="cloud-option active"
-									type="button"
-									data-i18n="clouds.off"
-								>
-									Off
-								</button>
-								<button
-									data-cloud="aesthetic"
-									class="cloud-option"
-									type="button"
-									data-i18n="clouds.aesthetic"
-								>
-									Estetiche
-								</button>
-								<button
-									data-cloud="real"
-									class="cloud-option"
-									type="button"
-									data-i18n="clouds.real"
-								>
-									Reali
-								</button>
+								<button data-cloud="off"       class="cloud-option active" type="button" data-i18n="clouds.off">Off</button>
+								<button data-cloud="aesthetic" class="cloud-option"        type="button" data-i18n="clouds.aesthetic">Estetiche</button>
+								<button data-cloud="real"      class="cloud-option"        type="button" data-i18n="clouds.real">Reali</button>
 							</div>
-							<button
-								id="toggle-precipitation-button"
-								class="feature-button"
-								type="button"
-							>
-								Precipitazioni
-							</button>
+							<button id="toggle-markers-button"       class="feature-button" type="button">Nascondi punti meteo</button>
+							<button id="toggle-heatmap-button"       class="feature-button" type="button">Heatmap temperatura</button>
+							<button id="toggle-wind-button"          class="feature-button" type="button">Vento (particelle)</button>
+							<button id="toggle-precipitation-button" class="feature-button" type="button">Precipitazioni</button>
 						</div>
-					</div>
+					</details>
 
-					<!-- Group 3: Settings -->
-					<div class="panel sidebar-group">
-						<div class="section-heading">
-							<p class="eyebrow" data-i18n="settings.eyebrow">
-								Impostazioni
-							</p>
-							<button
-								id="toggle-settings-button"
-								class="collapse-button"
-								type="button"
-								aria-label="Toggle settings"
-							>
-								<span aria-hidden="true">&#9662;</span>
-							</button>
+					<!-- ── Astronomia ── -->
+					<details class="accordion-item">
+						<summary class="accordion-header">
+							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.41 1.41M14.36 14.36l1.41 1.41M4.22 15.78l1.41-1.41M14.36 5.64l1.41-1.41"/></svg>
+							<span class="acc-label" data-i18n="cat.astronomia">Astronomia</span>
+							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+						</summary>
+						<div class="accordion-body sidebar-buttons">
+							<button id="toggle-terminator-button"    class="feature-button" type="button">Giorno / Notte</button>
+							<button id="toggle-tilt-simple-button"   class="feature-button" type="button">Asse fisso 23.4°</button>
+							<button id="toggle-tilt-seasonal-button" class="feature-button" type="button">Asse solare (stagionale)</button>
 						</div>
-						<div id="settings-content">
-							<label
-								class="label label-block"
-								for="language-select"
-								data-i18n="settings.language"
-								>Lingua</label
-							>
+					</details>
+
+					<!-- ── Situazioni ── -->
+					<details class="accordion-item">
+						<summary class="accordion-header">
+							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 5v5.5l3 2"/></svg>
+							<span class="acc-label" data-i18n="cat.situazioni">Situazioni</span>
+							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+						</summary>
+						<div class="accordion-body sidebar-buttons">
+							<button id="toggle-time-zones-button" class="feature-button" type="button" data-i18n="btn.timeZones">Orari globali</button>
+						</div>
+					</details>
+
+					<!-- ── Statistiche ── -->
+					<details class="accordion-item">
+						<summary class="accordion-header">
+							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="10" width="3" height="8" rx="1"/><rect x="8.5" y="6" width="3" height="12" rx="1"/><rect x="14" y="2" width="3" height="16" rx="1"/></svg>
+							<span class="acc-label" data-i18n="cat.statistiche">Statistiche</span>
+							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+						</summary>
+						<div class="accordion-body">
+							<dl class="sidebar-stats-grid">
+								<div><dt data-i18n="metrics.stations">Punti meteo</dt><dd id="sidebar-station-count">0</dd></div>
+								<div><dt data-i18n="metrics.avgTemp">Temp. media</dt><dd id="sidebar-avg-temp">-</dd></div>
+								<div><dt data-i18n="metrics.lastRefresh">Ultimo refresh</dt><dd id="sidebar-last-refresh">-</dd></div>
+								<div><dt data-i18n="metrics.nextRefresh">Prossimo refresh</dt><dd id="sidebar-next-refresh">-</dd></div>
+							</dl>
+						</div>
+					</details>
+
+					<!-- ── Impostazioni ── -->
+					<details class="accordion-item">
+						<summary class="accordion-header">
+							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M17.5 10a7.5 7.5 0 0 0-.12-1.3l1.6-1.24-1.5-2.6-1.93.78a7.5 7.5 0 0 0-2.24-1.3L13 2.5h-3l-.31 1.84a7.5 7.5 0 0 0-2.24 1.3l-1.93-.78-1.5 2.6 1.6 1.24A7.5 7.5 0 0 0 5.5 10a7.5 7.5 0 0 0 .12 1.3l-1.6 1.24 1.5 2.6 1.93-.78a7.5 7.5 0 0 0 2.24 1.3L10 17.5h3l.31-1.84a7.5 7.5 0 0 0 2.24-1.3l1.93.78 1.5-2.6-1.6-1.24A7.5 7.5 0 0 0 17.5 10Z"/></svg>
+							<span class="acc-label" data-i18n="cat.impostazioni">Impostazioni</span>
+							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+						</summary>
+						<div class="accordion-body" id="settings-content">
+							<label class="label label-block" for="language-select" data-i18n="settings.language">Lingua</label>
 							<select id="language-select">
 								<option value="it">Italiano</option>
 								<option value="en">English</option>
 							</select>
 
-							<label
-								class="label label-block"
-								for="provider-select"
-								data-i18n="provider.label"
-								>Provider</label
-							>
-							<select id="provider-select">
-								<!-- Populated dynamically -->
-							</select>
+							<label class="label label-block" for="provider-select" data-i18n="provider.label">Provider</label>
+							<select id="provider-select"><!-- Populated dynamically --></select>
+
 							<div id="provider-key-group">
-								<label
-									class="label label-block"
-									for="provider-api-key"
-									data-i18n="provider.apiKey"
-									>Chiave API</label
-								>
-								<input
-									id="provider-api-key"
-									type="password"
-									placeholder="Inserisci la chiave se richiesta"
-									autocomplete="off"
-								/>
+								<label class="label label-block" for="provider-api-key" data-i18n="provider.apiKey">Chiave API</label>
+								<input id="provider-api-key" type="password" placeholder="Inserisci la chiave se richiesta" autocomplete="off"/>
 								<div class="provider-actions">
-									<button
-										id="provider-save-button"
-										type="button"
-										data-i18n="provider.saveKey"
-									>
-										Salva chiave
-									</button>
+									<button id="provider-save-button" type="button" data-i18n="provider.saveKey">Salva chiave</button>
 								</div>
 							</div>
-							<p
-								id="provider-key-note"
-								class="provider-key-note"
-							></p>
-							<p
-								id="provider-capability"
-								class="provider-note"
-							></p>
+							<p id="provider-key-note"  class="provider-key-note"></p>
+							<p id="provider-capability" class="provider-note"></p>
 							<dl class="quota-grid">
-								<div>
-									<dt data-i18n="provider.quotaTotal">
-										Quota totale
-									</dt>
-									<dd id="quota-limit">-</dd>
-								</div>
-								<div>
-									<dt data-i18n="provider.quotaUsed">
-										Utilizzate
-									</dt>
-									<dd id="quota-used">-</dd>
-								</div>
-								<div>
-									<dt data-i18n="provider.quotaRemaining">
-										Rimanenti
-									</dt>
-									<dd id="quota-remaining">-</dd>
-								</div>
+								<div><dt data-i18n="provider.quotaTotal">Quota totale</dt><dd id="quota-limit">-</dd></div>
+								<div><dt data-i18n="provider.quotaUsed">Utilizzate</dt><dd id="quota-used">-</dd></div>
+								<div><dt data-i18n="provider.quotaRemaining">Rimanenti</dt><dd id="quota-remaining">-</dd></div>
 							</dl>
-							<p
-								id="quota-note"
-								class="provider-note"
-								data-i18n="provider.quotaNote"
-							>
-								La quota viene mostrata solo se il provider la
-								espone via API o header.
+							<p id="quota-note" class="provider-note" data-i18n="provider.quotaNote">
+								La quota viene mostrata solo se il provider la espone via API o header.
 							</p>
 						</div>
-					</div>
+					</details>
 				</div>
 			</aside>
 
 			<section class="search-dock panel">
 				<div class="section-heading">
 					<p class="eyebrow" data-i18n="search.eyebrow">Ricerca</p>
-					<p class="section-title" data-i18n="search.title">
-						Località o posizione attuale
-					</p>
+					<p class="section-title" data-i18n="search.title">Località o posizione attuale</p>
 				</div>
 				<form id="location-search-form" class="search-form">
 					<div class="search-input-wrap">
@@ -442,10 +261,7 @@
 							data-i18n-aria-label="search.locateMe"
 						>
 							<svg viewBox="0 0 24 24" aria-hidden="true">
-								<path
-									d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.2a2.8 2.8 0 1 1 0-5.6a2.8 2.8 0 0 1 0 5.6Z"
-									fill="currentColor"
-								/>
+								<path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.2a2.8 2.8 0 1 1 0-5.6a2.8 2.8 0 0 1 0 5.6Z" fill="currentColor"/>
 							</svg>
 						</button>
 						<input
@@ -456,21 +272,10 @@
 							autocomplete="off"
 						/>
 					</div>
-					<button
-						id="location-search-button"
-						type="submit"
-						data-i18n="search.submit"
-					>
-						Cerca
-					</button>
+					<button id="location-search-button" type="submit" data-i18n="search.submit">Cerca</button>
 				</form>
 			</section>
 		</div>
-		<div
-			id="snackbar"
-			class="snackbar"
-			role="status"
-			aria-live="polite"
-		></div>
+		<div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
 	</body>
 </html>

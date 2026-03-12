@@ -38,13 +38,24 @@ export function updateHud() {
     stationCount = availablePoints.length;
   }
 
-  dom.stationCount.textContent = `${stationCount}`;
-  dom.avgTemp.textContent = Number.isFinite(averageTemperature)
+  const stationCountText = `${stationCount}`;
+  const avgTempText = Number.isFinite(averageTemperature)
     ? `${averageTemperature.toFixed(1)} °C`
     : "-";
-  dom.lastRefresh.textContent = weatherState.lastUpdatedAt
+  const lastRefreshText = weatherState.lastUpdatedAt
     ? formatDateTime(weatherState.lastUpdatedAt)
     : t("metrics.waiting");
+
+  // Left HUD
+  dom.stationCount.textContent = stationCountText;
+  dom.avgTemp.textContent = avgTempText;
+  dom.lastRefresh.textContent = lastRefreshText;
+
+  // Right sidebar — Statistiche accordion
+  if (dom.sidebarStationCount) dom.sidebarStationCount.textContent = stationCountText;
+  if (dom.sidebarAvgTemp)      dom.sidebarAvgTemp.textContent      = avgTempText;
+  if (dom.sidebarLastRefresh)  dom.sidebarLastRefresh.textContent  = lastRefreshText;
+
   updateRefreshCountdown();
 }
 
@@ -60,7 +71,9 @@ export function updateRefreshCountdown() {
     .toString()
     .padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
-  dom.nextRefresh.textContent = `${minutes}:${seconds}`;
+  const countdownText = `${minutes}:${seconds}`;
+  dom.nextRefresh.textContent = countdownText;
+  if (dom.sidebarNextRefresh) dom.sidebarNextRefresh.textContent = countdownText;
 }
 
 export function updateSelectionPanel() {
@@ -238,6 +251,14 @@ export function updateToggleButtons() {
       weatherState.tiltMode === "seasonal" ? t("btn.tiltSeasonalOff") : t("btn.tiltSeasonal")
     );
     dom.toggleTiltSeasonalButton.classList.toggle("active", weatherState.tiltMode === "seasonal");
+  }
+
+  if (dom.toggleTimeZonesButton) {
+    dom.toggleTimeZonesButton.innerHTML = buttonMarkup(
+      `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 3v9.5l3.5 2.5"/><line x1="2" y1="12" x2="22" y2="12" stroke-dasharray="3 2"/><path d="M3 7.5h4M17 7.5h4M3 16.5h4M17 16.5h4" stroke-width="1" opacity="0.5"/></svg>`,
+      weatherState.showTimeZones ? t("btn.hideTimeZones") : t("btn.timeZones")
+    );
+    dom.toggleTimeZonesButton.classList.toggle("active", weatherState.showTimeZones);
   }
 }
 
