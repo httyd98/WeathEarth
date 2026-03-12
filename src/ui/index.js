@@ -210,6 +210,14 @@ export function updateToggleButtons() {
     );
   }
 
+  if (dom.toggleWindButton) {
+    dom.toggleWindButton.innerHTML = buttonMarkup(
+      `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h16a4 4 0 1 1-4 4"/><path d="M3 16h7"/></svg>`,
+      weatherState.showWind ? t("btn.hideWind") : t("btn.showWind")
+    );
+    dom.toggleWindButton.classList.toggle("active", weatherState.showWind);
+  }
+
   // Update cloud switch labels with current language
   document.querySelectorAll("#cloud-switch .cloud-option").forEach(btn => {
     const key = `clouds.${btn.dataset.cloud}`;

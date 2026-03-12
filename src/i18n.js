@@ -58,6 +58,8 @@ const translations = {
     "btn.showCloudCover": "Copertura nuvole",
     "btn.precipitation": "Precipitazioni",
     "btn.hidePrecipitation": "Nascondi precipitazioni",
+    "btn.showWind":            "Vento (particelle)",
+    "btn.hideWind":            "Nascondi vento",
     "btn.language": "Lingua: {lang}",
     "btn.langIt": "Italiano",
     "btn.langEn": "English",
@@ -70,6 +72,11 @@ const translations = {
     // Sidebar groups
     "sidebar.display": "Visualizzazione",
     "sidebar.weather": "Dati Meteo",
+
+    // Mode bar
+    "mode.realtime":           "Ora",
+    "mode.forecast":           "Modelli",
+    "mode.timeNow":            "Ora attuale",
 
     // Provider / Settings
     "provider.eyebrow": "Provider",
@@ -105,6 +112,12 @@ const translations = {
     "status.satelliteLoaded": "Nuvole da satellite ({date}){nrt}. Dati VIIRS/MODIS NASA.",
     "status.satelliteError": "Immagine satellite non disponibile. Uso stima interpolata.",
     "status.noPrecipitation": "Nessuna precipitazione rilevata nei punti campionati.",
+    "status.radarLoading":     "Caricamento radar RainViewer...",
+    "status.radarLoaded":      "Radar globale ({age} min fa). Auto-aggiornamento ogni 10 min.",
+    "status.radarError":       "Radar non disponibile. Uso stima interpolata.",
+    "status.forecastLoading":  "Caricamento previsione +{hours}h...",
+    "status.forecastLoaded":   "Previsione +{hours}h ({model}).",
+    "status.forecastError":    "Errore caricamento previsione.",
     "status.cacheLoaded": "Dati locali ({source}) caricati. Aggiornamento live in corso\u2026",
     "status.firstLoad": "Primo avvio \u2014 caricamento dati globali\u2026",
     "status.firstLoadSummary": "Primo avvio \u2014 caricamento riepilogo\u2026",
@@ -235,6 +248,8 @@ const translations = {
     "btn.showCloudCover": "Cloud cover",
     "btn.precipitation": "Precipitation",
     "btn.hidePrecipitation": "Hide precipitation",
+    "btn.showWind":            "Wind (particles)",
+    "btn.hideWind":            "Hide wind",
     "btn.language": "Language: {lang}",
     "btn.langIt": "Italiano",
     "btn.langEn": "English",
@@ -247,6 +262,11 @@ const translations = {
     // Sidebar groups
     "sidebar.display": "Display",
     "sidebar.weather": "Weather Data",
+
+    // Mode bar
+    "mode.realtime":           "Now",
+    "mode.forecast":           "Models",
+    "mode.timeNow":            "Current time",
 
     // Provider / Settings
     "provider.eyebrow": "Provider",
@@ -282,6 +302,12 @@ const translations = {
     "status.satelliteLoaded": "Satellite clouds ({date}){nrt}. VIIRS/MODIS data from NASA.",
     "status.satelliteError": "Satellite imagery unavailable. Using interpolated estimate.",
     "status.noPrecipitation": "No precipitation detected at currently sampled points.",
+    "status.radarLoading":     "Loading RainViewer global radar...",
+    "status.radarLoaded":      "Global radar ({age} min ago). Auto-refresh every 10 min.",
+    "status.radarError":       "Radar unavailable. Using interpolated estimate.",
+    "status.forecastLoading":  "Loading +{hours}h forecast...",
+    "status.forecastLoaded":   "+{hours}h forecast ({model}).",
+    "status.forecastError":    "Error loading forecast.",
     "status.cacheLoaded": "Local data ({source}) loaded. Live update in progress\u2026",
     "status.firstLoad": "First launch \u2014 loading global data\u2026",
     "status.firstLoadSummary": "First launch \u2014 loading summary\u2026",

@@ -125,5 +125,7 @@ export function buildPrecipitationCanvas(points) {
 
 export function updatePrecipitationLayer() {
   if (!weatherState.showPrecipitation) return;
+  // If RainViewer is active it manages its own updates; skip Gaussian fallback.
+  if (weatherState.useRainViewer) return;
   setTimeout(() => buildPrecipitationCanvas(weatherState.points), 0);
 }

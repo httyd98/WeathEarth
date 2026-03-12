@@ -143,6 +143,114 @@
   grid-template-columns: 1fr 1fr;
 }
 
+/* ── Mode bar: Ora / Modelli ──────────────────────────────────────────────── */
+
+.mode-bar {
+  padding: 12px 14px;
+}
+
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(151, 192, 255, 0.16);
+}
+
+.mode-option {
+  padding: 10px 4px;
+  border: none;
+  border-radius: 0;
+  color: var(--muted);
+  background: rgba(15, 31, 58, 0.84);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: none;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mode-option + .mode-option {
+  border-left: 1px solid rgba(151, 192, 255, 0.16);
+}
+
+.mode-option:hover {
+  background: rgba(25, 45, 80, 0.84);
+  transform: none;
+}
+
+.mode-option.active {
+  color: var(--text);
+  background: rgba(140, 230, 255, 0.15);
+}
+
+/* Model selector (Auto / GFS / ICON / MF / GEM) */
+.model-selector-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.model-selector-row[hidden] {
+  display: none;
+}
+
+.model-option {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 2px;
+  border-radius: 8px;
+  border: 1px solid rgba(151, 192, 255, 0.16);
+  color: var(--muted);
+  background: rgba(15, 31, 58, 0.84);
+  font-size: 0.72rem;
+  font-weight: 600;
+  box-shadow: none;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.model-option:hover {
+  background: rgba(25, 45, 80, 0.84);
+  transform: none;
+}
+
+.model-option.active {
+  color: var(--text);
+  background: rgba(140, 230, 255, 0.15);
+  border-color: rgba(140, 230, 255, 0.35);
+}
+
+/* Time slider row */
+.forecast-time-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.forecast-time-row[hidden] {
+  display: none;
+}
+
+.forecast-time-row input[type="range"] {
+  flex: 1;
+  accent-color: rgba(140, 230, 255, 0.8);
+}
+
+.forecast-time-label {
+  font-size: 0.78rem;
+  color: var(--text);
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Settings collapsible */
 #settings-content {
   margin-top: 12px;

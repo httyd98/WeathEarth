@@ -40,7 +40,14 @@ export const dom = {
   toggleSettingsButton: document.querySelector("#toggle-settings-button"),
   settingsContent: document.querySelector("#settings-content"),
   selectionCloudCover: document.querySelector("#selection-cloud-cover"),
-  selectionPrecipitation: document.querySelector("#selection-precipitation")
+  selectionPrecipitation: document.querySelector("#selection-precipitation"),
+  toggleWindButton:    document.querySelector("#toggle-wind-button"),
+  modeRealtimeBtn:     document.querySelector("#mode-realtime-btn"),
+  modeForecastBtn:     document.querySelector("#mode-forecast-btn"),
+  modelSelectorRow:    document.querySelector("#model-selector-row"),
+  forecastTimeRow:     document.querySelector("#forecast-time-row"),
+  forecastTimeSlider:  document.querySelector("#forecast-time-slider"),
+  forecastTimeLabel:   document.querySelector("#forecast-time-label"),
 };
 
 // points and providerId are initialized in main.js after all modules are loaded
@@ -60,6 +67,11 @@ export const weatherState = {
   showTerminator: true,
   cloudMode: "off",
   showPrecipitation: false,
+  showWind: false,
+  dataMode: "realtime",        // "realtime" | "forecast"
+  forecastModel: "auto",       // "auto" | "gfs" | "icon" | "meteofrance" | "gem"
+  forecastHours: 0,            // 0..72
+  useRainViewer: false,        // true when RainViewer is actively rendering precipitation
   rightSidebarOpen: false,
   showSettings: true,
   globeTargetX: 1.6,

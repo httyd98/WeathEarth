@@ -19,7 +19,12 @@ import { updateMarkerMeshes, updateMarkerVisibility, buildHeatmapCanvas, updateS
 import { buildCloudCanvas } from "./globe/cloudLayer.js";
 import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
 import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
+import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh } from "./globe/rainViewer.js";
+import { buildWindField, updateWindParticles, initWindParticles, windParticles } from "./globe/windParticles.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
+
+// UI — mode bar
+import { initModeBar } from "./ui/modeBar.js";
 
 // Weather modules
 import {
@@ -35,7 +40,8 @@ import {
   setProviderQuota,
   handleProviderChange,
   setUpdateSelectedMarkerCallback,
-  setOnProviderChange
+  setOnProviderChange,
+  setOnWeatherRefreshed
 } from "./weather/api.js";
 import {
   loadStoredProviderId,
@@ -130,6 +136,33 @@ updateProviderPanel();
 updateToggleButtons();
 updateFeatureVisibility();
 updateGlobeCenter();
+
+// Initialize wind particle system (particles pre-seeded at random positions)
+initWindParticles();
+
+// On each successful global weather refresh: rebuild wind field + update toggle labels
+setOnWeatherRefreshed(() => {
+  buildWindField(weatherState.points);
+  // If wind is visible, the per-frame updateWindParticles() will use the new field.
+  // No extra rebuild needed here — the field update is immediate and lock-free.
+  updateToggleButtons();
+});
+
+// Initialize mode bar (Ora / Modelli switcher)
+initModeBar({
+  onModeChange: (mode) => {
+    // Re-fetch with new model param already in weatherState.dataMode
+    refreshGlobalWeather(true, samplePoints, summaryPoints);
+    if (mode === "realtime") updateToggleButtons();
+  },
+  onModelChange: (_model, _param) => {
+    refreshGlobalWeather(true, samplePoints, summaryPoints);
+  },
+  onHoursChange: (_hours) => {
+    // Future: animate globe markers to +Xh forecast values
+  },
+});
+
 animate();
 
 // Event listeners
@@ -200,16 +233,38 @@ dom.toggleHeatmapButton?.addEventListener("click", () => {
   updateToggleButtons();
 });
 
-// Precipitation toggle
-dom.togglePrecipitationButton?.addEventListener("click", () => {
+// Wind toggle
+dom.toggleWindButton?.addEventListener("click", () => {
+  weatherState.showWind = !weatherState.showWind;
+  windParticles.visible = weatherState.showWind;
+  dom.toggleWindButton.classList.toggle("active", weatherState.showWind);
+  updateToggleButtons();
+});
+
+// Precipitation toggle — tries RainViewer first, falls back to Gaussian blobs
+dom.togglePrecipitationButton?.addEventListener("click", async () => {
   weatherState.showPrecipitation = !weatherState.showPrecipitation;
   precipMesh.visible = weatherState.showPrecipitation;
+
   if (weatherState.showPrecipitation) {
-    setTimeout(() => {
+    setStatus(t("status.radarLoading"));
+    const result = await fetchAndApplyRainViewer();
+    if (result) {
+      setStatus(t("status.radarLoaded", { age: result.ageMinutes }));
+      startRainViewerRefresh(
+        ({ ageMinutes }) => setStatus(t("status.radarLoaded", { age: ageMinutes })),
+        () => setStatus(t("status.radarError"))
+      );
+    } else {
+      // RainViewer unavailable — use Gaussian interpolation from station data
+      setStatus(t("status.radarError"));
       const hadData = buildPrecipitationCanvas(weatherState.points);
       if (!hadData) setStatus(t("status.noPrecipitation"));
-    }, 0);
+    }
+  } else {
+    stopRainViewerRefresh();
   }
+
   dom.togglePrecipitationButton.classList.toggle("active", weatherState.showPrecipitation);
   updateToggleButtons();
 });
@@ -248,10 +303,24 @@ window.setInterval(() => {
   refreshGlobalWeather(false, samplePoints, summaryPoints);
 }, REFRESH_INTERVAL_MS);
 
+let _lastFrameTime = performance.now();
+
 function animate() {
   requestAnimationFrame(animate);
+
+  // Delta time — capped at 100 ms to avoid huge jumps after tab inactivity
+  const now = performance.now();
+  const dt = Math.min((now - _lastFrameTime) / 1000, 0.1);
+  _lastFrameTime = now;
+
   updateControlsForZoom();
   clouds.rotation.y += 0.00008;
+
+  // Wind particles
+  if (windParticles.visible) {
+    updateWindParticles(dt);
+  }
+
   // Smooth globe centering
   const dx = weatherState.globeTargetX - globeGroup.position.x;
   if (Math.abs(dx) > 0.001) {

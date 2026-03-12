@@ -188,6 +188,46 @@
 				</button>
 
 				<div class="sidebar-content">
+					<!-- Mode bar: Ora / Modelli -->
+					<div class="panel sidebar-group mode-bar">
+						<div class="mode-switch">
+							<button
+								id="mode-realtime-btn"
+								class="mode-option active"
+								type="button"
+								data-i18n="mode.realtime"
+							>
+								Ora
+							</button>
+							<button
+								id="mode-forecast-btn"
+								class="mode-option"
+								type="button"
+								data-i18n="mode.forecast"
+							>
+								Modelli
+							</button>
+						</div>
+						<div id="model-selector-row" class="model-selector-row" hidden>
+							<button data-model="auto" class="model-option active" type="button">Auto</button>
+							<button data-model="gfs" class="model-option" type="button">GFS</button>
+							<button data-model="icon" class="model-option" type="button">ICON</button>
+							<button data-model="meteofrance" class="model-option" type="button">MF</button>
+							<button data-model="gem" class="model-option" type="button">GEM</button>
+						</div>
+						<div id="forecast-time-row" class="forecast-time-row" hidden>
+							<input
+								id="forecast-time-slider"
+								type="range"
+								min="0"
+								max="72"
+								step="1"
+								value="0"
+							/>
+							<span id="forecast-time-label" class="forecast-time-label">Ora attuale</span>
+						</div>
+					</div>
+
 					<!-- Group 1: Display features -->
 					<div class="panel sidebar-group">
 						<div class="section-heading">
@@ -216,6 +256,13 @@
 								type="button"
 							>
 								Heatmap temperatura
+							</button>
+							<button
+								id="toggle-wind-button"
+								class="feature-button"
+								type="button"
+							>
+								Vento (particelle)
 							</button>
 						</div>
 					</div>

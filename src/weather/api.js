@@ -53,6 +53,18 @@ export async function fetchOpenMeteoBatch(points) {
   );
   url.searchParams.set("timezone", "GMT");
 
+  // NWP model selection for forecast mode (Open-Meteo supports seamless blends)
+  const _MODEL_PARAMS = {
+    gfs: "gfs_seamless",
+    icon: "icon_seamless",
+    meteofrance: "meteofrance_seamless",
+    gem: "gem_seamless",
+  };
+  if (weatherState.forecastModel && weatherState.forecastModel !== "auto") {
+    const mp = _MODEL_PARAMS[weatherState.forecastModel];
+    if (mp) url.searchParams.set("models", mp);
+  }
+
   const response = await fetch(url);
   if (!response.ok) {
     const error = new Error(`Open-Meteo batch request failed: ${response.status}`);
@@ -322,6 +334,7 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
     updateCloudLayer();
     updatePrecipitationLayer();
     updateHud();
+    _onWeatherRefreshed?.();
 
     if (forceStatus) {
       setStatus(t("status.feedUpdated", { count: updatedCount, provider: globalProvider.name }));
@@ -682,4 +695,11 @@ export function setProviderQuota(providerId, quota) {
   if (providerId === weatherState.providerId) {
     updateProviderPanel();
   }
+}
+
+// Callback fired after each successful global weather refresh.
+// Used by main.js to rebuild wind field, update RainViewer, etc.
+let _onWeatherRefreshed = null;
+export function setOnWeatherRefreshed(fn) {
+  _onWeatherRefreshed = fn;
 }
