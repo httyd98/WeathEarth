@@ -76,6 +76,12 @@ const translations = {
     "btn.hideTimeZones":       "Nascondi orari globali",
     "btn.earthInterior":       "Strati interni della Terra",
     "btn.earthInteriorOff":    "Nascondi strati interni",
+    "btn.lightning":           "Fulmini",
+    "btn.hideLightning":       "Nascondi fulmini",
+    "btn.satellites":          "Satelliti",
+    "btn.hideSatellites":      "Nascondi satelliti",
+    "btn.aircraft":            "Traffico aereo",
+    "btn.hideAircraft":        "Nascondi traffico aereo",
     "btn.emField":             "Campo elettromagnetico",
     "btn.emFieldOff":          "Nascondi campo EM",
     "btn.language": "Lingua: {lang}",
@@ -90,6 +96,7 @@ const translations = {
     // Sidebar accordion categories
     "cat.meteo": "Meteo",
     "cat.astronomia": "Astronomia",
+    "cat.trasporti": "Trasporti",
     "cat.situazioni": "Situazioni",
     "cat.geo": "Geo",
     "cat.statistiche": "Statistiche",
@@ -209,6 +216,16 @@ const translations = {
     "quota.pirateWeather": "Quota gratuita: 5000 richieste/giorno.",
     "quota.fromHeaders": "Quota rilevata dai response header del provider.",
 
+    // Wind altitude
+    "wind.altitude": "Quota",
+    "wind.level.10m": "Superficie (10m)",
+    "wind.level.1000hPa": "1000 hPa (~100m)",
+    "wind.level.850hPa": "850 hPa (~1.5km)",
+    "wind.level.700hPa": "700 hPa (~3km)",
+    "wind.level.500hPa": "500 hPa (~5.5km)",
+    "wind.level.300hPa": "300 hPa (~9km)",
+    "wind.level.200hPa": "200 hPa (~12km)",
+
     // Condition fallback
     "condition.unknown": "Condizione non classificata",
     "condition.unavailable": "Condizione non disponibile",
@@ -292,6 +309,12 @@ const translations = {
     "btn.hideTimeZones":       "Hide time zones",
     "btn.earthInterior":       "Earth interior layers",
     "btn.earthInteriorOff":    "Hide interior layers",
+    "btn.lightning":           "Lightning",
+    "btn.hideLightning":       "Hide lightning",
+    "btn.satellites":          "Satellites",
+    "btn.hideSatellites":      "Hide satellites",
+    "btn.aircraft":            "Air traffic",
+    "btn.hideAircraft":        "Hide air traffic",
     "btn.emField":             "Electromagnetic field",
     "btn.emFieldOff":          "Hide EM field",
     "btn.language": "Language: {lang}",
@@ -306,6 +329,7 @@ const translations = {
     // Sidebar accordion categories
     "cat.meteo": "Weather",
     "cat.astronomia": "Astronomy",
+    "cat.trasporti": "Transport",
     "cat.situazioni": "Events",
     "cat.geo": "Geo",
     "cat.statistiche": "Statistics",
@@ -424,6 +448,16 @@ const translations = {
     "quota.visualCrossing": "Free quota: 1000 records/day.",
     "quota.pirateWeather": "Free quota: 5000 requests/day.",
     "quota.fromHeaders": "Quota detected from provider response headers.",
+
+    // Wind altitude
+    "wind.altitude": "Altitude",
+    "wind.level.10m": "Surface (10m)",
+    "wind.level.1000hPa": "1000 hPa (~100m)",
+    "wind.level.850hPa": "850 hPa (~1.5km)",
+    "wind.level.700hPa": "700 hPa (~3km)",
+    "wind.level.500hPa": "500 hPa (~5.5km)",
+    "wind.level.300hPa": "300 hPa (~9km)",
+    "wind.level.200hPa": "200 hPa (~12km)",
 
     // Condition fallback
     "condition.unknown": "Unknown condition",

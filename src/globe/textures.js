@@ -14,7 +14,18 @@ import { setStatus } from "../ui/index.js";
 
 export function updateControlsForZoom() {
   const distance = controls.getDistance();
-  controls.rotateSpeed = THREE.MathUtils.clamp(distance / 68, 0.018, 0.24);
+  // Rotate + zoom speed: inversely proportional to zoom level
+  const aboveSurface = Math.max(0.001, distance - 4.2);
+  const t = aboveSurface / (80 - 4.2); // 0 at surface, 1 at max
+  controls.rotateSpeed = 0.003 + t * 0.4; // 0.003 at surface → 0.4 at far
+  // Zoom speed: normal (1.5-2.0) until ~99% zoom (dist≈5), then drops sharply near surface
+  if (aboveSurface < 0.8) {
+    // Last 1% of zoom range: exponential slowdown
+    const f = aboveSurface / 0.8; // 0 at surface, 1 at dist=5
+    controls.zoomSpeed = 0.03 + f * f * 0.47; // 0.03 → 0.5
+  } else {
+    controls.zoomSpeed = 0.5 + t * 1.5; // 0.5 → 2.0
+  }
   // Only rebuild marker matrices when markers are visible and zoom changed significantly
   if (
     weatherState.showMarkers &&

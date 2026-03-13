@@ -234,11 +234,13 @@ for (let t = 0; t < TRAIL_LEN; t++) {
  * Where no station data exists within IDW_MAX_DIST, a climatological zonal wind
  * fallback is used so particles always show movement.
  */
-export function buildWindField(points) {
+export function buildWindField(points, level = '10m') {
   const stations = [];
   for (const p of points) {
-    const ws = p.current?.windSpeed;
-    const wd = p.current?.windDirection;
+    // Try altitude-specific wind data first, fall back to default 10m
+    const wl = p.current?.windLevels?.[level];
+    const ws = wl?.speed ?? (level === '10m' ? p.current?.windSpeed : null);
+    const wd = wl?.direction ?? (level === '10m' ? p.current?.windDirection : null);
     if (ws == null || wd == null) continue;
     const speed_ms = ws / 3.6;
     const dir_rad  = wd * (Math.PI / 180);

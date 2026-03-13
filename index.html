@@ -117,6 +117,13 @@
 				<span class="left-sidebar-arrow">&#8249;</span>
 			</button>
 
+			<!-- ── Wind altitude slider (visible when wind is active) ── -->
+			<div id="wind-altitude-slider" class="wind-altitude-slider" style="display:none">
+				<label class="wind-alt-label" data-i18n="wind.altitude">Quota</label>
+				<input id="wind-alt-range" type="range" min="0" max="6" step="1" value="0" orient="vertical" />
+				<span id="wind-alt-value" class="wind-alt-value">10m</span>
+			</div>
+
 			<!-- ── Right sidebar (accordion categories) ── -->
 			<aside id="right-sidebar" class="right-sidebar collapsed">
 				<button
@@ -160,9 +167,19 @@
 								<button data-cloud="real"      class="cloud-option"        type="button" data-i18n="clouds.real">Reali</button>
 							</div>
 							<button id="toggle-markers-button"       class="feature-button" type="button">Nascondi punti meteo</button>
-							<button id="toggle-heatmap-button"       class="feature-button" type="button">Heatmap temperatura</button>
-							<button id="toggle-wind-button"          class="feature-button" type="button">Vento (particelle)</button>
-							<button id="toggle-precipitation-button" class="feature-button" type="button">Precipitazioni</button>
+							<div class="feature-row">
+								<button id="toggle-heatmap-button"       class="feature-button" type="button">Heatmap temperatura</button>
+								<button id="refresh-heatmap" class="refresh-btn" type="button" title="Refresh">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-wind-button"          class="feature-button" type="button">Vento (particelle)</button>
+								<button id="refresh-wind" class="refresh-btn" type="button" title="Refresh">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-precipitation-button" class="feature-button" type="button">Precipitazioni</button>
+								<button id="refresh-precipitation" class="refresh-btn" type="button" title="Refresh">&#8635;</button>
+							</div>
+							<button id="toggle-lightning-button" class="feature-button" type="button" data-i18n="btn.lightning">Fulmini</button>
 						</div>
 					</details>
 
@@ -177,6 +194,19 @@
 							<button id="toggle-terminator-button"    class="feature-button" type="button">Giorno / Notte</button>
 							<button id="toggle-tilt-simple-button"   class="feature-button" type="button">Asse fisso 23.4°</button>
 							<button id="toggle-tilt-seasonal-button" class="feature-button" type="button">Asse solare (stagionale)</button>
+							<button id="toggle-satellites-button"    class="feature-button" type="button" data-i18n="btn.satellites">Satelliti</button>
+						</div>
+					</details>
+
+					<!-- ── Trasporti ── -->
+					<details class="accordion-item">
+						<summary class="accordion-header">
+							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 17l4-12 6 6-12 4zm0 0l5.5-2.5"/><path d="M14 3l3 3-3 3" stroke-width="1.4"/></svg>
+							<span class="acc-label" data-i18n="cat.trasporti">Trasporti</span>
+							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+						</summary>
+						<div class="accordion-body sidebar-buttons">
+							<button id="toggle-aircraft-button" class="feature-button" type="button" data-i18n="btn.aircraft">Traffico aereo</button>
 						</div>
 					</details>
 
@@ -299,5 +329,6 @@
 			</section>
 		</div>
 		<div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
+		<div id="status-bar"><span id="sb-zoom"></span></div>
 	</body>
 </html>

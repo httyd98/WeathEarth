@@ -46,6 +46,9 @@ export const dom = {
   toggleEarthInteriorButton:  document.querySelector("#toggle-earth-interior-button"),
   toggleEmFieldButton:        document.querySelector("#toggle-em-field-button"),
   leftSidebarToggle:          document.querySelector("#left-sidebar-toggle"),
+  windAltitudeSlider:         document.querySelector("#wind-altitude-slider"),
+  windAltRange:               document.querySelector("#wind-alt-range"),
+  windAltValue:               document.querySelector("#wind-alt-value"),
   // Sidebar statistics panel (Statistiche accordion)
   sidebarStationCount: document.querySelector("#sidebar-station-count"),
   sidebarAvgTemp:      document.querySelector("#sidebar-avg-temp"),
@@ -77,6 +80,7 @@ export const weatherState = {
   cloudMode: "aesthetic",
   showPrecipitation: false,
   showWind: false,
+  windAltitudeLevel: "10m",
   dataMode: "realtime",        // "realtime" | "forecast"
   forecastModel: "auto",       // "auto" | "gfs" | "icon" | "meteofrance" | "gem"
   forecastHours: 0,            // 0..72
@@ -87,6 +91,9 @@ export const weatherState = {
   globeTargetX: 1.6,
   tiltMode: "none",
   showTimeZones: false,
+  showLightning: false,
+  showSatellites: false,
+  showAircraft: false,
   showEarthInterior: false,
   showEmField: false,
   summaryStats: null,

@@ -33,8 +33,8 @@ export const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
 controls.enableDamping = true;
 controls.dampingFactor = 0.045;
-controls.minDistance = 7;
-controls.maxDistance = 50;
+controls.minDistance = 4.21; // just above GLOBE_RADIUS (4.2) — surface level
+controls.maxDistance = 80;
 controls.autoRotate = false;
 controls.rotateSpeed = 0.42;
 
@@ -60,14 +60,14 @@ earth.renderOrder = 1;
 globeGroup.add(earth);
 
 export const nightLights = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.038, 64, 64),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.001, 64, 64),
   createNightLightsMaterial()
 );
 nightLights.renderOrder = 2;
 globeGroup.add(nightLights);
 
 export const terminatorOverlay = new THREE.Mesh(
-  new THREE.SphereGeometry(GLOBE_RADIUS * 1.038, 64, 64),
+  new THREE.SphereGeometry(GLOBE_RADIUS * 1.002, 64, 64),
   createTerminatorMaterial()
 );
 terminatorOverlay.renderOrder = 3;

@@ -349,17 +349,31 @@ export const PROVIDERS = {
 };
 
 export function normalizeOpenMeteoEntry(entry) {
+  const c = entry.current;
+  // Build wind levels map for altitude slider
+  const WIND_LEVELS = ["1000hPa","850hPa","700hPa","500hPa","300hPa","200hPa"];
+  const windLevels = {
+    "10m": { speed: c.wind_speed_10m, direction: c.wind_direction_10m ?? null }
+  };
+  for (const lvl of WIND_LEVELS) {
+    const s = c[`wind_speed_${lvl}`];
+    const d = c[`wind_direction_${lvl}`];
+    if (s != null) windLevels[lvl] = { speed: s, direction: d ?? null };
+  }
+
   return {
-    temperature: entry.current.temperature_2m,
-    humidity: entry.current.relative_humidity_2m,
-    pressure: entry.current.pressure_msl ?? null,
-    weatherCode: entry.current.weather_code,
-    conditionLabel: getWeatherCodeLabel(entry.current.weather_code),
-    windSpeed: entry.current.wind_speed_10m,
-    windDirection: entry.current.wind_direction_10m ?? null,
-    cloudCover: entry.current.cloud_cover ?? null,
-    precipitation: entry.current.precipitation ?? 0,
-    isDay: Boolean(entry.current.is_day),
+    temperature: c.temperature_2m,
+    humidity: c.relative_humidity_2m,
+    pressure: c.pressure_msl ?? null,
+    weatherCode: c.weather_code,
+    conditionLabel: getWeatherCodeLabel(c.weather_code),
+    windSpeed: c.wind_speed_10m,
+    windDirection: c.wind_direction_10m ?? null,
+    cloudCover: c.cloud_cover ?? null,
+    precipitation: c.precipitation ?? 0,
+    isDay: Boolean(c.is_day),
+    cape: c.cape ?? null,
+    windLevels,
     units: {
       temperature: entry.current_units.temperature_2m,
       humidity: entry.current_units.relative_humidity_2m,

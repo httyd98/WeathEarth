@@ -22,12 +22,16 @@ import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
 import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
 import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh } from "./globe/rainViewer.js";
 import { buildWindField, updateWindParticles, initWindParticles, windParticles, isWindFieldEmpty, setWindTrailsVisible } from "./globe/windParticles.js";
+import { lightningMesh, buildLightningField, updateLightning } from "./globe/lightningLayer.js";
 import { timeZoneMesh, buildTimeZoneCanvas, updateTimeZoneLayer, highlightZoneAtUV, clearTimeZoneHighlight } from "./globe/timeZoneLayer.js";
 import { initEarthInterior, enableEarthInterior, disableEarthInterior, updateEarthInterior, toggleLayerVisibility, hasActiveFullSphereLayers } from "./globe/earthInterior.js";
 import { enableEmField, disableEmField } from "./globe/emFieldLayer.js";
 import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
+import { updateOSMTileLayer } from "./globe/osmTileLayer.js";
 import { initMoon, updateMoon } from "./globe/moonLayer.js";
 import { initSkyBackground, updateSkyRotation } from "./globe/skyBackground.js";
+import { enableSatellites, disableSatellites, updateSatellites } from "./globe/satelliteLayer.js";
+import { enableAircraft, disableAircraft, updateAircraft } from "./globe/aircraftLayer.js";
 
 // UI — mode bar
 import { initModeBar } from "./ui/modeBar.js";
@@ -76,6 +80,12 @@ import {
   setGetStoredApiKey,
   setUpdateMarkerVisibilityCallback
 } from "./ui/index.js";
+
+// IndexedDB cache
+import { initCacheDB, saveWeatherDB, clearExpired } from "./weather/cacheDB.js";
+initCacheDB().then(ok => {
+  if (ok) clearExpired();
+});
 
 // Providers - wire up late binding to break circular dep
 import { setFetchOpenMeteoGlobal } from "./providers.js";
@@ -165,10 +175,14 @@ initSkyBackground(scene, starField);
 
 // On each successful global weather refresh: rebuild wind field + update toggle labels
 setOnWeatherRefreshed(() => {
-  buildWindField(weatherState.points);
-  // If wind is visible, the per-frame updateWindParticles() will use the new field.
-  // No extra rebuild needed here — the field update is immediate and lock-free.
+  buildWindField(weatherState.points, weatherState.windAltitudeLevel);
+  if (weatherState.showLightning) buildLightningField(weatherState.points);
   updateToggleButtons();
+  // Also save to IndexedDB for larger/persistent cache
+  const validPoints = weatherState.points.filter(p => p.current);
+  if (validPoints.length > 0) {
+    saveWeatherDB({ data: validPoints.map(p => ({ lat: p.lat, lon: p.lon, current: p.current })) });
+  }
 });
 
 // Initialize mode bar (Ora / Modelli switcher)
@@ -277,6 +291,7 @@ function handleToggleEarthInterior() {
 
 // Must be declared BEFORE animate() is called to avoid temporal dead zone error
 let _lastFrameTime = performance.now();
+const _sbZoom = document.getElementById("sb-zoom");
 
 animate();
 
@@ -382,14 +397,34 @@ dom.toggleHeatmapButton?.addEventListener("click", () => {
   updateLegend();
 });
 
+// Wind altitude levels mapping (slider index → param key)
+const WIND_LEVELS = ["10m","1000hPa","850hPa","700hPa","500hPa","300hPa","200hPa"];
+
+function _updateWindAltLabel() {
+  const lvl = WIND_LEVELS[parseInt(dom.windAltRange?.value ?? "0", 10)];
+  if (dom.windAltValue) dom.windAltValue.textContent = t(`wind.level.${lvl}`);
+}
+
+// Wind altitude slider change
+dom.windAltRange?.addEventListener("input", () => {
+  const lvl = WIND_LEVELS[parseInt(dom.windAltRange.value, 10)];
+  weatherState.windAltitudeLevel = lvl;
+  _updateWindAltLabel();
+  buildWindField(weatherState.points, lvl);
+});
+
 // Wind toggle
 dom.toggleWindButton?.addEventListener("click", () => {
   weatherState.showWind = !weatherState.showWind;
   windParticles.visible = weatherState.showWind;
   setWindTrailsVisible(weatherState.showWind);
+  // Show/hide altitude slider
+  if (dom.windAltitudeSlider) {
+    dom.windAltitudeSlider.style.display = weatherState.showWind ? "" : "none";
+  }
   // Rebuild field on demand if no data yet (e.g., enabled before first refresh)
   if (weatherState.showWind && isWindFieldEmpty()) {
-    buildWindField(weatherState.points);
+    buildWindField(weatherState.points, weatherState.windAltitudeLevel);
   }
   dom.toggleWindButton.classList.toggle("active", weatherState.showWind);
   updateToggleButtons();
@@ -423,6 +458,73 @@ dom.togglePrecipitationButton?.addEventListener("click", async () => {
   dom.togglePrecipitationButton.classList.toggle("active", weatherState.showPrecipitation);
   updateToggleButtons();
   updateLegend();
+});
+
+// Lightning toggle
+document.getElementById("toggle-lightning-button")?.addEventListener("click", () => {
+  weatherState.showLightning = !weatherState.showLightning;
+  lightningMesh.visible = weatherState.showLightning;
+  if (weatherState.showLightning) {
+    buildLightningField(weatherState.points);
+  }
+  const btn = document.getElementById("toggle-lightning-button");
+  btn?.classList.toggle("active", weatherState.showLightning);
+  if (btn) btn.textContent = t(weatherState.showLightning ? "btn.hideLightning" : "btn.lightning");
+});
+
+// Satellite toggle
+document.getElementById("toggle-satellites-button")?.addEventListener("click", () => {
+  weatherState.showSatellites = !weatherState.showSatellites;
+  if (weatherState.showSatellites) {
+    enableSatellites();
+  } else {
+    disableSatellites();
+  }
+  const btn = document.getElementById("toggle-satellites-button");
+  btn?.classList.toggle("active", weatherState.showSatellites);
+  if (btn) btn.textContent = t(weatherState.showSatellites ? "btn.hideSatellites" : "btn.satellites");
+});
+
+// Aircraft toggle
+document.getElementById("toggle-aircraft-button")?.addEventListener("click", () => {
+  weatherState.showAircraft = !weatherState.showAircraft;
+  if (weatherState.showAircraft) {
+    enableAircraft();
+  } else {
+    disableAircraft();
+  }
+  const btn = document.getElementById("toggle-aircraft-button");
+  btn?.classList.toggle("active", weatherState.showAircraft);
+  if (btn) btn.textContent = t(weatherState.showAircraft ? "btn.hideAircraft" : "btn.aircraft");
+});
+
+// Refresh buttons — force re-download data for specific features
+document.getElementById("refresh-heatmap")?.addEventListener("click", () => {
+  if (weatherState.showHeatmap) {
+    buildHeatmapCanvas(weatherState.points);
+    showSnackbar(t("status.feedUpdated", { count: "", provider: "Heatmap" }), "info");
+  }
+});
+
+document.getElementById("refresh-wind")?.addEventListener("click", async () => {
+  if (weatherState.showWind) {
+    setStatus(t("status.updating"));
+    await refreshGlobalWeather(true, samplePoints, summaryPoints);
+    buildWindField(weatherState.points, weatherState.windAltitudeLevel);
+  }
+});
+
+document.getElementById("refresh-precipitation")?.addEventListener("click", async () => {
+  if (weatherState.showPrecipitation) {
+    setStatus(t("status.radarLoading"));
+    const result = await fetchAndApplyRainViewer();
+    if (result) {
+      setStatus(t("status.radarLoaded", { age: result.ageMinutes }));
+    } else {
+      setStatus(t("status.radarError"));
+      buildPrecipitationCanvas(weatherState.points);
+    }
+  }
 });
 
 // Language selector
@@ -487,6 +589,14 @@ function animate() {
 
   updateControlsForZoom();
 
+  // Status bar — zoom % (4.21=surface=100%, 80=far=0%)
+  const _camDist = camera.position.distanceTo(globeGroup.position);
+  const zoomPct = Math.round(((80 - _camDist) / (80 - 4.21)) * 100);
+  if (_sbZoom) _sbZoom.textContent = `ZOOM ${Math.max(0, Math.min(100, zoomPct))}%`;
+
+  // OSM tile layer — loads tiles when zoomed in close
+  updateOSMTileLayer(dt);
+
   // Only rotate clouds when they're visible
   if (clouds.visible) {
     clouds.rotation.y += 0.00008;
@@ -495,6 +605,21 @@ function animate() {
   // Wind particles — only update when visible
   if (windParticles.visible) {
     updateWindParticles(dt);
+  }
+
+  // Lightning flashes
+  if (lightningMesh.visible) {
+    updateLightning(now / 1000);
+  }
+
+  // Satellites
+  if (weatherState.showSatellites) {
+    updateSatellites(now / 1000);
+  }
+
+  // Aircraft
+  if (weatherState.showAircraft) {
+    updateAircraft(now / 1000);
   }
 
   // Animated earth interior layers — update when cross-section or full-sphere layers are active

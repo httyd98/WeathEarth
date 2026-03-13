@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "geomagnetism": "^0.2.0",
+    "satellite.js": "^6.0.2",
     "three": "^0.180.0"
   },
   "devDependencies": {
