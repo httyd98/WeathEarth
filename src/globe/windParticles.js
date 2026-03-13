@@ -237,15 +237,16 @@ for (let t = 0; t < TRAIL_LEN; t++) {
 export function buildWindField(points, level = '10m') {
   const stations = [];
   for (const p of points) {
-    // Try altitude-specific wind data first, fall back to default 10m
+    // Try altitude-specific wind data first, fall back to surface 10m data
     const wl = p.current?.windLevels?.[level];
-    const ws = wl?.speed ?? (level === '10m' ? p.current?.windSpeed : null);
-    const wd = wl?.direction ?? (level === '10m' ? p.current?.windDirection : null);
+    const ws = wl?.speed ?? p.current?.windSpeed ?? null;
+    const wd = wl?.direction ?? p.current?.windDirection ?? null;
     if (ws == null || wd == null) continue;
     const speed_ms = ws / 3.6;
     const dir_rad  = wd * (Math.PI / 180);
     const u = -speed_ms * Math.sin(dir_rad);
     const v = -speed_ms * Math.cos(dir_rad);
+    if (isNaN(u) || isNaN(v)) continue;
     stations.push({ lat: p.lat, lon: p.lon, u, v, speed: speed_ms });
   }
 

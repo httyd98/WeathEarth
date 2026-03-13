@@ -27,7 +27,12 @@
       "Bash(git add index.html src/globe/windParticles.js src/globe/skyBackground.js src/globe/timeZoneLayer.js src/i18n.js src/main.js src/state.js src/styles/sidebar.css src/ui/index.js)",
       "Bash(npm ls:*)",
       "Bash(npm install:*)",
-      "Bash(node -e \"const g = require\\(''geomagnetism''\\); const m = g.model\\(\\); const info = m.point\\([45, 9]\\); console.log\\(JSON.stringify\\(info\\)\\)\")"
+      "Bash(node -e \"const g = require\\(''geomagnetism''\\); const m = g.model\\(\\); const info = m.point\\([45, 9]\\); console.log\\(JSON.stringify\\(info\\)\\)\")",
+      "Bash(grep -E \"\\\\.js$\")",
+      "Bash(find /Users/eliaspiga/lavoro/personale/TerraCast -type f \\\\\\(-name *.js -o -name *.json \\\\\\))",
+      "Bash(pip3 install:*)",
+      "Bash(npx vite:*)",
+      "Bash(find /Users/eliaspiga/lavoro/personale/TerraCast/.claude/worktrees/funny-bose/public -type f \\\\\\(-name *.json -o -name *.geojson \\\\\\))"
     ]
   }
 }

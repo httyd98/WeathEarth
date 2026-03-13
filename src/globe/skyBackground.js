@@ -458,6 +458,36 @@ function _tryLoadRealStarMap(mat, urlIndex = 0) {
 // ── Sky sphere ───────────────────────────────────────────────────────────────
 
 let _skyMesh = null;
+let _skyDimTarget = 1.0; // 1 = full brightness, 0 = fully dimmed
+
+/**
+ * Smoothly dim or restore the sky background.
+ * @param {number} opacity — target opacity (0–1). Use ~0.15 when satellites are active.
+ */
+export function setSkyDimming(opacity) {
+  _skyDimTarget = Math.max(0, Math.min(1, opacity));
+}
+
+/**
+ * Call every frame to smoothly interpolate sky opacity toward target.
+ */
+export function isSkyDimming() {
+  if (!_skyMesh) return false;
+  return Math.abs(_skyDimTarget - _skyMesh.material.opacity) > 0.002;
+}
+
+export function updateSkyDimming() {
+  if (!_skyMesh) return;
+  const current = _skyMesh.material.opacity;
+  const diff = _skyDimTarget - current;
+  if (Math.abs(diff) < 0.002) {
+    if (_skyMesh.material.opacity !== _skyDimTarget) {
+      _skyMesh.material.opacity = _skyDimTarget;
+    }
+    return;
+  }
+  _skyMesh.material.opacity = current + diff * 0.05;
+}
 
 /**
  * Initialize the photorealistic sky sphere.
@@ -478,6 +508,8 @@ export function initSkyBackground(scene, oldStarField) {
     side: THREE.BackSide,   // render inside face so we see it from inside
     fog: false,             // never fog the sky sphere
     depthWrite: false,
+    transparent: true,
+    opacity: 1.0,
   });
 
   _skyMesh = new THREE.Mesh(

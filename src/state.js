@@ -45,6 +45,7 @@ export const dom = {
   toggleTimeZonesButton:      document.querySelector("#toggle-time-zones-button"),
   toggleEarthInteriorButton:  document.querySelector("#toggle-earth-interior-button"),
   toggleEmFieldButton:        document.querySelector("#toggle-em-field-button"),
+  toggleWaterBodiesButton:    document.querySelector("#toggle-water-bodies-button"),
   leftSidebarToggle:          document.querySelector("#left-sidebar-toggle"),
   windAltitudeSlider:         document.querySelector("#wind-altitude-slider"),
   windAltRange:               document.querySelector("#wind-alt-range"),
@@ -96,9 +97,17 @@ export const weatherState = {
   showAircraft: false,
   showEarthInterior: false,
   showEmField: false,
+  showWaterBodies: false,
+  showShips: false,
+  showTraffic: false,
+  showEconomy: false,
+  showAnthropology: false,
   summaryStats: null,
   lastDistanceForScale: null,
-  language: localStorage.getItem('terracast:language') ?? 'it'
+  language: localStorage.getItem('terracast:language') ?? 'it',
+  // Filters: which sub-types are highlighted (all active by default)
+  satelliteFilters: { leo: true, meo: true, geo: true, heo: true },
+  aircraftFilters: { low: true, mid: true, high: true },
 };
 
 export const interactionState = {

@@ -319,6 +319,71 @@ dt {
   z-index: 10;
   pointer-events: none;
   display: flex;
-  gap: 18px;
+  gap: 14px;
   white-space: nowrap;
+}
+#status-bar .sb-item {
+  opacity: 0.75;
+}
+#status-bar .sb-item::before {
+  content: "·";
+  margin-right: 6px;
+  opacity: 0.4;
+}
+
+/* ── Floating entity info card ── */
+.entity-card {
+  position: fixed;
+  z-index: 20;
+  background: rgba(10, 18, 30, 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(100, 160, 255, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: rgba(180, 210, 255, 0.9);
+  min-width: 180px;
+  max-width: 280px;
+  pointer-events: auto;
+  transition: opacity 0.2s;
+}
+.entity-card-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: none;
+  border: none;
+  color: rgba(180, 210, 255, 0.5);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.entity-card-close:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+.entity-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(200, 230, 255, 1);
+  margin-bottom: 2px;
+  cursor: move;
+}
+.entity-card-subtitle {
+  font-size: 10px;
+  color: rgba(140, 180, 230, 0.7);
+  margin-bottom: 6px;
+}
+.entity-card-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  font-size: 10px;
+}
+.entity-card-body .label {
+  color: rgba(140, 180, 230, 0.6);
+}
+.entity-card-body .value {
+  color: rgba(200, 230, 255, 0.9);
+  text-align: right;
 }

@@ -19,22 +19,22 @@ renderer.toneMappingExposure = 1.6;
 dom.sceneRoot.append(renderer.domElement);
 
 export const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x02040b, 0.003);
+scene.fog = new THREE.FogExp2(0x02040b, 0.0008);
 
 export const camera = new THREE.PerspectiveCamera(
   42,
   window.innerWidth / window.innerHeight,
   0.1,
-  500
+  800
 );
 camera.position.set(1.6, 1.5, 12.8);
 
 export const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
 controls.enableDamping = true;
-controls.dampingFactor = 0.045;
-controls.minDistance = 4.21; // just above GLOBE_RADIUS (4.2) — surface level
-controls.maxDistance = 80;
+controls.dampingFactor = 0.08;
+controls.minDistance = 4.36; // just above terrain displacement (prevents going inside mountains)
+controls.maxDistance = 150;
 controls.autoRotate = false;
 controls.rotateSpeed = 0.42;
 

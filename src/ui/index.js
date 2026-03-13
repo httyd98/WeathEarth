@@ -276,6 +276,14 @@ export function updateToggleButtons() {
     );
     dom.toggleEmFieldButton.classList.toggle("active", weatherState.showEmField);
   }
+
+  if (dom.toggleWaterBodiesButton) {
+    dom.toggleWaterBodiesButton.innerHTML = buttonMarkup(
+      `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 7c2-2 4 2 6 0s4-2 6 0s4 2 6 0"/><path d="M3 12c2-2 4 2 6 0s4-2 6 0s4 2 6 0"/><path d="M3 17c2-2 4 2 6 0s4-2 6 0s4 2 6 0"/></svg>`,
+      weatherState.showWaterBodies ? t("btn.hideWaterBodies") : t("btn.waterBodies")
+    );
+    dom.toggleWaterBodiesButton.classList.toggle("active", weatherState.showWaterBodies);
+  }
 }
 
 // ── Dynamic legend ──────────────────────────────────────────────────────────

@@ -26,6 +26,7 @@ import {
   storeProviderId,
   loadStoredProviderId
 } from "./cache.js";
+import { loadWeatherDB } from "./cacheDB.js";
 import {
   setStatus,
   showSnackbar,
@@ -53,11 +54,22 @@ export async function fetchOpenMeteoBatch(points) {
       "temperature_2m","relative_humidity_2m","pressure_msl","weather_code",
       "wind_speed_10m","wind_direction_10m","is_day","cloud_cover","precipitation",
       "wind_speed_1000hPa","wind_direction_1000hPa",
+      "wind_speed_925hPa","wind_direction_925hPa",
       "wind_speed_850hPa","wind_direction_850hPa",
       "wind_speed_700hPa","wind_direction_700hPa",
+      "wind_speed_600hPa","wind_direction_600hPa",
       "wind_speed_500hPa","wind_direction_500hPa",
+      "wind_speed_400hPa","wind_direction_400hPa",
       "wind_speed_300hPa","wind_direction_300hPa",
+      "wind_speed_250hPa","wind_direction_250hPa",
       "wind_speed_200hPa","wind_direction_200hPa",
+      "wind_speed_150hPa","wind_direction_150hPa",
+      "wind_speed_100hPa","wind_direction_100hPa",
+      "wind_speed_70hPa","wind_direction_70hPa",
+      "wind_speed_50hPa","wind_direction_50hPa",
+      "wind_speed_30hPa","wind_direction_30hPa",
+      "wind_speed_20hPa","wind_direction_20hPa",
+      "wind_speed_10hPa","wind_direction_10hPa",
       "cape"
     ].join(",")
   );
@@ -73,6 +85,20 @@ export async function fetchOpenMeteoBatch(points) {
   if (weatherState.forecastModel && weatherState.forecastModel !== "auto") {
     const mp = _MODEL_PARAMS[weatherState.forecastModel];
     if (mp) url.searchParams.set("models", mp);
+  }
+
+  // Forecast mode: also request hourly data for the forecast offset
+  if (weatherState.dataMode === "forecast" && weatherState.forecastHours > 0) {
+    url.searchParams.set("hourly", [
+      "temperature_2m","relative_humidity_2m","pressure_msl","weather_code",
+      "wind_speed_10m","wind_direction_10m","cloud_cover","precipitation",
+      "wind_speed_850hPa","wind_direction_850hPa",
+      "wind_speed_500hPa","wind_direction_500hPa",
+      "wind_speed_300hPa","wind_direction_300hPa",
+      "wind_speed_200hPa","wind_direction_200hPa",
+      "cape"
+    ].join(","));
+    url.searchParams.set("forecast_hours", Math.min(weatherState.forecastHours + 1, 168));
   }
 
   const response = await fetch(url);
@@ -371,10 +397,14 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
       setStatus(reason);
       if (forceStatus) showSnackbar(reason, "warn");
     } else {
-      // Nothing in memory — last-resort cache/snapshot attempt
+      // Nothing in memory — last-resort cache/snapshot/IndexedDB attempt
       const cache = loadWeatherCache();
       const snapshot = !cache ? loadWeatherSnapshot() : null;
-      const fallbackPayload = cache ?? snapshot;
+      let fallbackPayload = cache ?? snapshot;
+      // Try IndexedDB if localStorage caches are empty
+      if (!fallbackPayload) {
+        try { fallbackPayload = await loadWeatherDB(); } catch { /* ignore */ }
+      }
 
       if (fallbackPayload) {
         applyCachedWeather(fallbackPayload);

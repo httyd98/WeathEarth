@@ -16,18 +16,20 @@
  */
 
 import * as THREE from "three";
-import { globeGroup, camera, raycaster, earth, nightLights } from "./scene.js";
+import { globeGroup, camera, raycaster, earth, earthMaterial, nightLights } from "./scene.js";
 import { GLOBE_RADIUS } from "../constants.js";
 import { saveTileBlob, loadTileBlob } from "../weather/cacheDB.js";
 import { createFetchLimiter } from "../utils/fetchLimiter.js";
 
 const OSM_LAYER_RADIUS = GLOBE_RADIUS * 1.0003;
-const ENTER_DISTANCE = 4.8;
-const EXIT_DISTANCE = 5.1;
+const ENTER_DISTANCE = 5.2;   // start fading in earlier for smooth transition
+const EXIT_DISTANCE  = 5.5;
+const SURFACE_STOP   = 4.36;  // matches controls.minDistance — camera stops here
 const TILE_SIZE = 256;
 const GRID_SIZE = 8;
 const CANVAS_SIZE = GRID_SIZE * TILE_SIZE; // 2048px
 const FADE_SPEED = 2.5; // opacity per second
+const DATA_ZOOM_MAX = 5;  // extra zoom levels on top of camera-based zoom
 
 const _limiter = createFetchLimiter(4);
 
@@ -45,6 +47,8 @@ let _active = false;
 let _lastTileKey = "";
 let _loading = false;
 let _nightLightsWereVisible = false;
+let _dataZoom = 0;          // extra zoom levels accumulated via scroll at surface
+let _earthOpacityOrig = -1; // saved earthMaterial opacity for restore
 
 function _lruGet(key) {
   if (!_tileCache.has(key)) return null;
@@ -85,14 +89,34 @@ function _tileYToLat(y, z) {
  * Visible span (degrees) decreases as camera gets closer.
  */
 function _camDistToZoom(dist) {
-  // Map camera distance to OSM zoom level
-  // dist=4.8 → z10, dist=4.5 → z13, dist=4.3 → z16, dist=4.21 → z19
-  // Using exponential mapping: closer = exponentially higher zoom
-  const aboveSurface = Math.max(0.005, dist - GLOBE_RADIUS); // 0.005 to 0.6
-  // log scale: 0.6 → z10, 0.01 → z19
+  // dist=5.2 → z9, dist=4.8 → z12, dist=4.5 → z15, dist=4.36 → z17
+  const aboveSurface = Math.max(0.005, dist - GLOBE_RADIUS);
   const z = Math.round(10 + (Math.log(0.6) - Math.log(aboveSurface)) / Math.log(0.6 / 0.01) * 9);
   return THREE.MathUtils.clamp(z, 8, 19);
 }
+
+/** Effective zoom = camera-based + data zoom bonus. */
+function _effectiveZoom(dist) {
+  return Math.min(19, _camDistToZoom(dist) + _dataZoom);
+}
+
+// ── Data zoom public API ──────────────────────────────────────────────────────
+
+/** Add delta (+1/-1) to data zoom. Call from wheel handler when at surface. */
+export function addDataZoom(delta) {
+  _dataZoom = Math.max(0, Math.min(DATA_ZOOM_MAX, _dataZoom + delta));
+  _lastTileKey = ""; // force tile reload at new zoom
+}
+
+/** Reset data zoom (called when camera leaves surface). */
+export function resetDataZoom() {
+  if (_dataZoom === 0) return;
+  _dataZoom = 0;
+  _lastTileKey = "";
+}
+
+/** Current data zoom level (0 = none). */
+export function getDataZoom() { return _dataZoom; }
 
 async function _fetchTile(z, x, y) {
   const key = `osm/${z}/${x}/${y}`;
@@ -179,7 +203,7 @@ function _buildPartialGeometry(lonMin, lonMax, latMin, latMax) {
   _mesh.geometry = geo;
 }
 
-async function _loadVisibleTiles(centerLat, centerLon, zoom) {
+async function _loadVisibleTiles(centerLat, centerLon, zoom, dataZoomSnapshot) {
   const cx = _lonToTileX(centerLon, zoom);
   const cy = _latToTileY(centerLat, zoom);
   const half = Math.floor(GRID_SIZE / 2);
@@ -194,7 +218,7 @@ async function _loadVisibleTiles(centerLat, centerLon, zoom) {
   const latMax = _tileYToLat(startY, zoom);
   const latMin = _tileYToLat(endY + 1, zoom);
 
-  const tileKey = `${zoom}/${startX}/${startY}`;
+  const tileKey = `${zoom}/${startX}/${startY}/${dataZoomSnapshot}`;
   if (tileKey === _lastTileKey) return;
   _lastTileKey = tileKey;
 
@@ -231,19 +255,21 @@ async function _loadVisibleTiles(centerLat, centerLon, zoom) {
 export function updateOSMTileLayer(dt) {
   const camDist = camera.position.distanceTo(globeGroup.position);
 
+  // Activate / deactivate OSM zone
   if (camDist < ENTER_DISTANCE && !_active) {
     _active = true;
     _ensureMesh();
     _mesh.visible = true;
-    // Hide night lights while OSM is active
     if (nightLights) {
       _nightLightsWereVisible = nightLights.visible;
       nightLights.visible = false;
     }
+    // Enable earth transparency for smooth crossfade
+    if (earthMaterial) earthMaterial.transparent = true;
   } else if (camDist > EXIT_DISTANCE && _active) {
     _active = false;
     _lastTileKey = "";
-    // Restore night lights
+    resetDataZoom();
     if (nightLights && _nightLightsWereVisible) {
       nightLights.visible = true;
     }
@@ -251,12 +277,25 @@ export function updateOSMTileLayer(dt) {
 
   if (!_mesh) return;
 
-  // Fade in overlay
-  const targetOpacity = _active ? 0.95 : 0;
+  // OSM opacity: fades in as camera approaches
+  const targetOpacity = _active ? 0.97 : 0;
   if (Math.abs(_opacity - targetOpacity) > 0.001) {
     _opacity += (targetOpacity > _opacity ? 1 : -1) * FADE_SPEED * dt;
-    _opacity = Math.max(0, Math.min(0.95, _opacity));
+    _opacity = THREE.MathUtils.clamp(_opacity, 0, 0.97);
     _mesh.material.opacity = _opacity;
+  }
+
+  // Earth crossfade: tied to OSM opacity so transitions are always smooth
+  if (earthMaterial) {
+    if (_opacity > 0) {
+      earthMaterial.transparent = true;
+      // Earth fades out as OSM fades in
+      earthMaterial.opacity = Math.max(0.04, 1.0 - _opacity);
+    } else {
+      // Fully restored when OSM is gone
+      earthMaterial.opacity = 1.0;
+      earthMaterial.transparent = false;
+    }
   }
 
   if (_opacity <= 0 && !_active) {
@@ -264,17 +303,29 @@ export function updateOSMTileLayer(dt) {
     return;
   }
 
+  // When camera leaves surface zone, reset data zoom
+  if (_active && camDist > SURFACE_STOP + 0.15 && _dataZoom > 0) {
+    resetDataZoom();
+  }
+
   // Load tiles — guard against concurrent loads
   if (_active && !_loading) {
     const center = _getCenterLatLon();
     if (center) {
-      const zoom = _camDistToZoom(camDist);
+      const zoom = _effectiveZoom(camDist);
+      const dz = _dataZoom;
       _loading = true;
-      _loadVisibleTiles(center.lat, center.lon, zoom).finally(() => {
+      _loadVisibleTiles(center.lat, center.lon, zoom, dz).finally(() => {
         _loading = false;
       });
     }
   }
+}
+
+/** Returns current effective zoom for status display. */
+export function getOSMZoom() {
+  const camDist = camera.position.distanceTo(globeGroup.position);
+  return _effectiveZoom(camDist);
 }
 
 /**

@@ -15,21 +15,29 @@
  */
 
 import * as THREE from "three";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { twoline2satrec, propagate, gstime, eciToGeodetic, degreesLong, degreesLat } from "satellite.js";
-import { scene, camera, globeGroup } from "./scene.js";
+import { scene, camera, globeGroup, renderer } from "./scene.js";
+import { weatherState } from "../state.js";
 import { GLOBE_RADIUS } from "../constants.js";
 import { saveGeoData, loadGeoData } from "../weather/cacheDB.js";
 import { createFetchLimiter } from "../utils/fetchLimiter.js";
 
 const EARTH_RADIUS_KM = 6371;
-const TLE_CACHE_KEY = "tle_active";
+const TLE_CACHE_KEY = "tle_all_groups";
 const TLE_TTL = 24 * 60 * 60 * 1000; // 24h
 const UPDATE_INTERVAL = 10; // seconds between position updates
-const MAX_SATELLITES = 5000;
+const MAX_SATELLITES = 15000;
 
-// TLE sources — active first (large set), stations as fallback
+// TLE sources — fetch multiple groups and merge with deduplication
 const TLE_URLS = [
   "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
+  "https://celestrak.org/NORAD/elements/gp.php?GROUP=analyst&FORMAT=tle",
+  "https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle",
+  "https://celestrak.org/NORAD/elements/gp.php?GROUP=geo&FORMAT=tle",
+  "https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle",
   "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle"
 ];
 
@@ -42,6 +50,11 @@ let _orbitLine = null;
 let _lastUpdate = 0;
 let _loaded = false;
 let _visible = false;
+let _currentLODCount = 0; // hysteresis: current LOD level
+// Maps visible instance index → _satellites array index
+let _visibleToSatIndex = [];
+let _hoveredInstance = -1; // currently hovered instance (-1 = none)
+let _selectedSatIndex = -1; // satellite with active orbit line
 
 const _dummy = new THREE.Object3D();
 const _color = new THREE.Color();
@@ -79,13 +92,13 @@ function _altitudeKm(satrec, date) {
 
 function _orbitTypeColor(altKm) {
   if (altKm < 2000) {
-    _color.setRGB(0.2, 0.85, 1.0); // LEO = cyan
+    _color.setRGB(0.6, 1.4, 1.4); // LEO = very bright cyan (>1 for HDR bloom)
   } else if (altKm < 20000) {
-    _color.setRGB(0.2, 0.9, 0.3); // MEO = green
+    _color.setRGB(0.6, 1.4, 0.7); // MEO = very bright green
   } else if (altKm > 33000 && altKm < 37000) {
-    _color.setRGB(1.0, 0.65, 0.15); // GEO = orange
+    _color.setRGB(1.4, 1.0, 0.4); // GEO = very bright orange
   } else {
-    _color.setRGB(1.0, 0.3, 0.3); // HEO/other = red
+    _color.setRGB(1.4, 0.6, 0.6); // HEO/other = very bright red
   }
 }
 
@@ -108,7 +121,8 @@ function _createMesh() {
     _mesh.material.dispose();
   }
 
-  const geo = new THREE.SphereGeometry(0.02, 6, 6);
+  // Larger base geometry for easier click targeting (bounding sphere used by raycaster)
+  const geo = new THREE.SphereGeometry(0.07, 8, 8);
   const mat = new THREE.MeshBasicMaterial({
     toneMapped: false,
   });
@@ -132,25 +146,46 @@ async function _fetchTLEData() {
     return cached;
   }
 
-  // Fetch from CelesTrak — try active first (large set), then stations as fallback
-  for (const url of TLE_URLS) {
-    try {
-      const resp = await _limiter.fetch(url);
-      if (!resp.ok) continue;
-      const text = await resp.text();
-      if (text.length > 100) {
-        await saveGeoData(TLE_CACHE_KEY, text, TLE_TTL);
-        return text;
+  // Fetch all TLE groups in parallel, merge and deduplicate
+  const results = await Promise.allSettled(
+    TLE_URLS.map(url =>
+      _limiter.fetch(url).then(resp => resp.ok ? resp.text() : "")
+    )
+  );
+
+  const allText = results
+    .filter(r => r.status === "fulfilled" && r.value.length > 100)
+    .map(r => r.value);
+
+  if (allText.length === 0) return null;
+
+  // Parse all, deduplicate by NORAD catalog number (satnum), then rebuild TLE text
+  const seen = new Set();
+  const dedupedLines = [];
+  for (const text of allText) {
+    const lines = text.trim().split("\n").map(l => l.trim());
+    for (let i = 0; i < lines.length - 2; i++) {
+      if (lines[i + 1]?.[0] === "1" && lines[i + 2]?.[0] === "2") {
+        // Extract NORAD catalog number from line 2 columns 3-7
+        const satnum = lines[i + 2].substring(2, 7).trim();
+        if (!seen.has(satnum)) {
+          seen.add(satnum);
+          dedupedLines.push(lines[i], lines[i + 1], lines[i + 2]);
+        }
+        i += 2;
       }
-    } catch { /* try next */ }
+    }
   }
-  return null;
+
+  const merged = dedupedLines.join("\n");
+  if (merged.length > 100) {
+    await saveGeoData(TLE_CACHE_KEY, merged, TLE_TTL);
+  }
+  return merged;
 }
 
 function _getLODCount() {
-  const dist = camera.position.distanceTo(globeGroup.position);
-  if (dist > 20) return 50;
-  if (dist > 10) return 500;
+  // No LOD — always render all satellites to avoid pop-in/pop-out artefacts
   return MAX_SATELLITES;
 }
 
@@ -168,44 +203,60 @@ function _updatePositions() {
   const globePos = new THREE.Vector3();
   globeGroup.getWorldPosition(globePos);
 
+  _visibleToSatIndex = [];
   let visibleCount = 0;
   for (let i = 0; i < count; i++) {
     const sat = _satellites[i];
     const pos = _altitudeKm(sat.satrec, now);
-    if (!pos || pos.alt < 100 || pos.alt > 50000) continue;
+    if (!pos || pos.alt < 100 || pos.alt > 60000) continue;
 
     // Position in globe-local space, then transform to world
     const localPos = _latLonAltToWorld(pos.lat, pos.lon, pos.alt);
     localPos.applyMatrix4(globeWorldMatrix);
 
-    const scale = sat.isISS ? 0.06 : 0.02;
+    // ISS largest, GEO/HEO bigger than LEO for visibility at distance
+    const isHovered = visibleCount === _hoveredInstance;
+    const isSelected = i === _selectedSatIndex;
+    const baseScale = sat.isISS ? 0.09 : pos.alt > 20000 ? 0.07 : 0.05;
+    const scale = isSelected ? baseScale * 4.0 : isHovered ? baseScale * 2.0 : baseScale;
     _dummy.position.copy(localPos);
-    _dummy.scale.setScalar(scale / 0.02); // relative to base geo radius
+    _dummy.scale.setScalar(scale / 0.07);
     _dummy.updateMatrix();
     _mesh.setMatrixAt(visibleCount, _dummy.matrix);
 
     _orbitTypeColor(pos.alt);
-    if (sat.isISS) _color.setRGB(1.0, 1.0, 0.5); // ISS = bright yellow
-    _mesh.instanceColor.setXYZ(visibleCount, _color.r, _color.g, _color.b);
+    if (sat.isISS) _color.setRGB(1.5, 1.5, 0.7);
+    // Selected: bright white-yellow so it stands out from orbit line
+    if (isSelected) {
+      _color.setRGB(2.0, 2.0, 0.5);
+    } else if (isHovered) {
+      _color.r = Math.min(2.0, _color.r * 1.6);
+      _color.g = Math.min(2.0, _color.g * 1.6);
+      _color.b = Math.min(2.0, _color.b * 1.6);
+    }
+    // Filter dimming by orbit type
+    const f = weatherState.satelliteFilters;
+    const orbitBand = pos.alt < 2000 ? "leo" : pos.alt < 20000 ? "meo" : (pos.alt > 33000 && pos.alt < 37000) ? "geo" : "heo";
+    const dim = f[orbitBand] ? 1.0 : 0.12;
+    _mesh.instanceColor.setXYZ(visibleCount, _color.r * dim, _color.g * dim, _color.b * dim);
 
+    _visibleToSatIndex.push(i);
     visibleCount++;
   }
 
   _mesh.count = visibleCount;
   _mesh.instanceMatrix.needsUpdate = true;
   _mesh.instanceColor.needsUpdate = true;
+  // Recompute bounding sphere so raycasting works with updated positions
+  _mesh.computeBoundingSphere();
 }
 
 /**
  * Compute and display one full orbit for a satellite.
  */
 function _showOrbit(satIndex) {
-  if (_orbitLine) {
-    scene.remove(_orbitLine);
-    _orbitLine.geometry.dispose();
-    _orbitLine.material.dispose();
-    _orbitLine = null;
-  }
+  disposeOrbitLine();
+  _selectedSatIndex = satIndex;
 
   const sat = _satellites[satIndex];
   if (!sat) return;
@@ -231,15 +282,24 @@ function _showOrbit(satIndex) {
 
   if (points.length < 2) return;
 
-  const geo = new THREE.BufferGeometry().setFromPoints(points);
-  const mat = new THREE.LineBasicMaterial({
-    color: 0x88ccff,
+  // Use Line2 for actual thick lines (LineBasicMaterial linewidth >1 is not supported in WebGL)
+  const positions = [];
+  for (const p of points) {
+    positions.push(p.x, p.y, p.z);
+  }
+  const geo = new LineGeometry();
+  geo.setPositions(positions);
+  const mat = new LineMaterial({
+    color: 0xffee44,   // bright yellow — distinguishable from cyan/blue satellites
+    linewidth: 4,      // pixels
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.95,
     depthWrite: false,
+    resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
   });
 
-  _orbitLine = new THREE.Line(geo, mat);
+  _orbitLine = new Line2(geo, mat);
+  _orbitLine.computeLineDistances();
   scene.add(_orbitLine);
 }
 
@@ -270,12 +330,17 @@ export async function enableSatellites() {
 export function disableSatellites() {
   _visible = false;
   if (_mesh) _mesh.visible = false;
+  disposeOrbitLine();
+}
+
+export function disposeOrbitLine() {
   if (_orbitLine) {
     scene.remove(_orbitLine);
-    _orbitLine.geometry.dispose();
-    _orbitLine.material.dispose();
+    _orbitLine.geometry?.dispose();
+    _orbitLine.material?.dispose();
     _orbitLine = null;
   }
+  _selectedSatIndex = -1;
 }
 
 /**
@@ -292,4 +357,59 @@ export function updateSatellites(time) {
 
 export function getSatelliteCount() {
   return _satellites.length;
+}
+
+/** Returns the InstancedMesh for raycasting */
+export function getSatelliteMesh() {
+  return _mesh;
+}
+
+/** Returns satellite data for a given visible instance index */
+export function getSatelliteData(instanceIndex) {
+  const satIdx = _visibleToSatIndex[instanceIndex];
+  if (satIdx == null || satIdx < 0 || satIdx >= _satellites.length) return null;
+  const sat = _satellites[satIdx];
+  const pos = _altitudeKm(sat.satrec, new Date());
+  // Orbital period from mean motion (rev/day)
+  const meanMotion = sat.satrec.no * 1440 / (2 * Math.PI); // rev/day
+  const periodMin = meanMotion > 0 ? 1440 / meanMotion : null;
+  // Orbital velocity (approximate: v = sqrt(GM/r))
+  const rKm = pos ? (EARTH_RADIUS_KM + pos.alt) : null;
+  const velocityKmS = rKm ? Math.sqrt(398600.4418 / rKm) : null;
+  // Orbit type
+  const alt = pos?.alt ?? 0;
+  const orbitType = alt < 2000 ? "LEO" : alt < 20000 ? "MEO" : (alt > 33000 && alt < 37000) ? "GEO" : "HEO";
+  // Inclination from satrec (radians → degrees)
+  const inclinationDeg = sat.satrec.inclo != null ? (sat.satrec.inclo * 180 / Math.PI) : null;
+  // Epoch year from satrec
+  const epochYear = sat.satrec.epochyr != null ? (sat.satrec.epochyr < 57 ? 2000 + sat.satrec.epochyr : 1900 + sat.satrec.epochyr) : null;
+
+  return {
+    name: sat.name,
+    isISS: sat.isISS,
+    noradId: sat.satrec?.satnum,
+    altitude: pos?.alt ?? null,
+    lat: pos?.lat ?? null,
+    lon: pos?.lon ?? null,
+    velocityKmS,
+    periodMin,
+    orbitType,
+    inclinationDeg,
+    epochYear,
+  };
+}
+
+/** Shows the orbit for a given visible instance index */
+export function showSatelliteOrbit(instanceIndex) {
+  const satIdx = _visibleToSatIndex[instanceIndex];
+  if (satIdx != null) _showOrbit(satIdx);
+}
+
+/** Set hovered instance index (triggers visual highlight on next update) */
+export function setHoveredSatellite(instanceIndex) {
+  if (_hoveredInstance !== instanceIndex) {
+    _hoveredInstance = instanceIndex;
+    // Force immediate visual update for responsive hover
+    if (_visible && _loaded) _updatePositions();
+  }
 }

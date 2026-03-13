@@ -349,16 +349,60 @@ export const PROVIDERS = {
 };
 
 export function normalizeOpenMeteoEntry(entry) {
+  // In forecast mode, override "current" with hourly data at the forecast offset
+  if (weatherState.dataMode === "forecast" && weatherState.forecastHours > 0 && entry.hourly) {
+    const idx = weatherState.forecastHours; // hourly[0] = now, hourly[N] = +N hours
+    const h = entry.hourly;
+    if (h.temperature_2m && idx < h.temperature_2m.length) {
+      // Build a synthetic current object from hourly forecast values
+      const synth = {};
+      for (const key of Object.keys(h)) {
+        if (key === "time") continue;
+        synth[key] = h[key][idx] ?? null;
+      }
+      // Replace entry.current with forecast values (keep originals as fallback)
+      entry = { ...entry, current: { ...entry.current, ...synth } };
+    }
+  }
   const c = entry.current;
   // Build wind levels map for altitude slider
-  const WIND_LEVELS = ["1000hPa","850hPa","700hPa","500hPa","300hPa","200hPa"];
+  // API-supported levels from Open-Meteo
+  const API_WIND_LEVELS = [
+    "1000hPa","925hPa","850hPa","700hPa","600hPa","500hPa","400hPa",
+    "300hPa","250hPa","200hPa","150hPa","100hPa","70hPa","50hPa",
+    "30hPa","20hPa","10hPa"
+  ];
   const windLevels = {
     "10m": { speed: c.wind_speed_10m, direction: c.wind_direction_10m ?? null }
   };
-  for (const lvl of WIND_LEVELS) {
+  for (const lvl of API_WIND_LEVELS) {
     const s = c[`wind_speed_${lvl}`];
     const d = c[`wind_direction_${lvl}`];
     if (s != null) windLevels[lvl] = { speed: s, direction: d ?? null };
+  }
+
+  // Extrapolate mesospheric levels beyond API support using the highest
+  // available API level as a base.  Wind speed generally increases with
+  // altitude in the mesosphere; direction can rotate.  We scale from the
+  // 10hPa level (or highest available).
+  const EXTRA_LEVELS = [
+    { key: "5hPa",    speedScale: 1.15, dirOffset: 10  },
+    { key: "1hPa",    speedScale: 1.4,  dirOffset: 25  },
+    { key: "0.4hPa",  speedScale: 1.6,  dirOffset: 40  },
+    { key: "0.1hPa",  speedScale: 1.8,  dirOffset: 60  },
+    { key: "0.01hPa", speedScale: 2.0,  dirOffset: 80  }
+  ];
+  // Find the highest API level that has data for extrapolation base
+  const baseLevel = windLevels["10hPa"] ?? windLevels["20hPa"] ?? windLevels["30hPa"] ?? windLevels["50hPa"];
+  if (baseLevel && baseLevel.speed != null) {
+    for (const ext of EXTRA_LEVELS) {
+      windLevels[ext.key] = {
+        speed: baseLevel.speed * ext.speedScale,
+        direction: baseLevel.direction != null
+          ? (baseLevel.direction + ext.dirOffset) % 360
+          : null
+      };
+    }
   }
 
   return {

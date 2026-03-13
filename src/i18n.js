@@ -84,6 +84,8 @@ const translations = {
     "btn.hideAircraft":        "Nascondi traffico aereo",
     "btn.emField":             "Campo elettromagnetico",
     "btn.emFieldOff":          "Nascondi campo EM",
+    "btn.waterBodies":         "Laghi e fiumi",
+    "btn.hideWaterBodies":     "Nascondi laghi e fiumi",
     "btn.language": "Lingua: {lang}",
     "btn.langIt": "Italiano",
     "btn.langEn": "English",
@@ -97,10 +99,32 @@ const translations = {
     "cat.meteo": "Meteo",
     "cat.astronomia": "Astronomia",
     "cat.trasporti": "Trasporti",
+    "cat.economia": "Economia",
+    "cat.antropologia": "Antropologia",
     "cat.situazioni": "Situazioni",
     "cat.geo": "Geo",
     "cat.statistiche": "Statistiche",
     "cat.impostazioni": "Impostazioni",
+
+    // Economy
+    "btn.economy": "Dati economici",
+    "btn.hideEconomy": "Nascondi economia",
+    "eco.gdpB": "PIB",
+    "eco.gdpPcUSD": "PIB/cap",
+    "eco.worldSharePct": "Quota mondiale",
+    "eco.exportB": "Export",
+    "eco.importB": "Import",
+    "eco.gdpGrowthPct": "Crescita",
+
+    // Anthropology
+    "btn.anthropology": "Dati demografici",
+    "btn.hideAnthropology": "Nascondi demografia",
+    "anthro.popM": "Popolazione",
+    "anthro.birthRate": "Natalità",
+    "anthro.malePct": "% Maschi",
+    "anthro.medianAge": "Età med.",
+    "anthro.u14pct": "0–14 anni",
+    "anthro.plus65pct": "65+ anni",
 
     // Sidebar groups (legacy)
     "sidebar.display": "Visualizzazione",
@@ -226,6 +250,26 @@ const translations = {
     "wind.level.300hPa": "300 hPa (~9km)",
     "wind.level.200hPa": "200 hPa (~12km)",
 
+    // Aircraft & transport
+    "aircraft.type": "Tipo aereo",
+    "aircraft.route": "Rotta prevista",
+    "btn.ships": "Navi",
+    "btn.hideShips": "Nascondi navi",
+    "status.shipsConnecting": "Connessione al feed AIS navi…",
+    "status.shipsConnected": "Feed navi AIS connesso.",
+    "status.shipsError": "Errore connessione feed navi.",
+    "status.shipsKeyMissing": "Chiave API AIS necessaria. Registrati su aisstream.io (gratuito).",
+    "btn.traffic": "Traffico stradale",
+    "btn.hideTraffic": "Nascondi traffico",
+    "status.trafficLoading": "Caricamento dati stradali…",
+    "status.trafficLoaded": "Traffico stradale attivo.",
+    "status.trafficError": "Errore caricamento dati stradali.",
+
+    // Water bodies
+    "status.waterBodiesLoading": "Caricamento laghi e fiumi (GeoJSON Natural Earth)…",
+    "status.waterBodiesLoaded": "Laghi e fiumi caricati.",
+    "status.waterBodiesError": "Errore caricamento laghi e fiumi.",
+
     // Condition fallback
     "condition.unknown": "Condizione non classificata",
     "condition.unavailable": "Condizione non disponibile",
@@ -317,6 +361,8 @@ const translations = {
     "btn.hideAircraft":        "Hide air traffic",
     "btn.emField":             "Electromagnetic field",
     "btn.emFieldOff":          "Hide EM field",
+    "btn.waterBodies":         "Lakes & rivers",
+    "btn.hideWaterBodies":     "Hide lakes & rivers",
     "btn.language": "Language: {lang}",
     "btn.langIt": "Italiano",
     "btn.langEn": "English",
@@ -330,10 +376,32 @@ const translations = {
     "cat.meteo": "Weather",
     "cat.astronomia": "Astronomy",
     "cat.trasporti": "Transport",
+    "cat.economia": "Economy",
+    "cat.antropologia": "Anthropology",
     "cat.situazioni": "Events",
     "cat.geo": "Geo",
     "cat.statistiche": "Statistics",
     "cat.impostazioni": "Settings",
+
+    // Economy
+    "btn.economy": "Economic data",
+    "btn.hideEconomy": "Hide economy",
+    "eco.gdpB": "GDP",
+    "eco.gdpPcUSD": "GDP/cap",
+    "eco.worldSharePct": "World share",
+    "eco.exportB": "Exports",
+    "eco.importB": "Imports",
+    "eco.gdpGrowthPct": "Growth",
+
+    // Anthropology
+    "btn.anthropology": "Demographic data",
+    "btn.hideAnthropology": "Hide demographics",
+    "anthro.popM": "Population",
+    "anthro.birthRate": "Birth rate",
+    "anthro.malePct": "Male %",
+    "anthro.medianAge": "Median age",
+    "anthro.u14pct": "Age 0–14",
+    "anthro.plus65pct": "Age 65+",
 
     // Sidebar groups (legacy)
     "sidebar.display": "Display",
@@ -458,6 +526,26 @@ const translations = {
     "wind.level.500hPa": "500 hPa (~5.5km)",
     "wind.level.300hPa": "300 hPa (~9km)",
     "wind.level.200hPa": "200 hPa (~12km)",
+
+    // Aircraft & transport
+    "aircraft.type": "Aircraft type",
+    "aircraft.route": "Projected route",
+    "btn.ships": "Ships",
+    "btn.hideShips": "Hide ships",
+    "status.shipsConnecting": "Connecting to AIS ship feed…",
+    "status.shipsConnected": "AIS ship feed connected.",
+    "status.shipsError": "Error connecting to ship feed.",
+    "status.shipsKeyMissing": "AIS API key required. Register at aisstream.io (free).",
+    "btn.traffic": "Road traffic",
+    "btn.hideTraffic": "Hide traffic",
+    "status.trafficLoading": "Loading road data…",
+    "status.trafficLoaded": "Road traffic active.",
+    "status.trafficError": "Error loading road data.",
+
+    // Water bodies
+    "status.waterBodiesLoading": "Loading lakes & rivers (Natural Earth GeoJSON)…",
+    "status.waterBodiesLoaded": "Lakes & rivers loaded.",
+    "status.waterBodiesError": "Error loading lakes & rivers.",
 
     // Condition fallback
     "condition.unknown": "Unknown condition",

@@ -528,3 +528,30 @@ details[open] > .accordion-header .acc-arrow {
     width: 38px;
   }
 }
+
+/* ── Layer filter chips ── */
+.layer-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0 2px;
+}
+.filter-chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(100, 160, 255, 0.25);
+  background: rgba(10, 18, 30, 0.5);
+  color: rgba(140, 180, 230, 0.5);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-chip.active {
+  background: rgba(60, 120, 220, 0.25);
+  border-color: rgba(100, 160, 255, 0.5);
+  color: rgba(200, 230, 255, 0.95);
+}
+.filter-chip:hover {
+  border-color: rgba(100, 160, 255, 0.6);
+}

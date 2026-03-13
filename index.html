@@ -120,7 +120,7 @@
 			<!-- ── Wind altitude slider (visible when wind is active) ── -->
 			<div id="wind-altitude-slider" class="wind-altitude-slider" style="display:none">
 				<label class="wind-alt-label" data-i18n="wind.altitude">Quota</label>
-				<input id="wind-alt-range" type="range" min="0" max="6" step="1" value="0" orient="vertical" />
+				<input id="wind-alt-range" type="range" min="0" max="21" step="1" value="0" orient="vertical" />
 				<span id="wind-alt-value" class="wind-alt-value">10m</span>
 			</div>
 
@@ -195,6 +195,12 @@
 							<button id="toggle-tilt-simple-button"   class="feature-button" type="button">Asse fisso 23.4°</button>
 							<button id="toggle-tilt-seasonal-button" class="feature-button" type="button">Asse solare (stagionale)</button>
 							<button id="toggle-satellites-button"    class="feature-button" type="button" data-i18n="btn.satellites">Satelliti</button>
+							<div id="satellite-filters" class="layer-filters" style="display:none">
+								<button class="filter-chip active" data-filter="leo">LEO</button>
+								<button class="filter-chip active" data-filter="meo">MEO</button>
+								<button class="filter-chip active" data-filter="geo">GEO</button>
+								<button class="filter-chip active" data-filter="heo">HEO</button>
+							</div>
 						</div>
 					</details>
 
@@ -207,10 +213,57 @@
 						</summary>
 						<div class="accordion-body sidebar-buttons">
 							<button id="toggle-aircraft-button" class="feature-button" type="button" data-i18n="btn.aircraft">Traffico aereo</button>
+							<div id="aircraft-filters" class="layer-filters" style="display:none">
+								<button class="filter-chip active" data-filter="low">Bassa quota</button>
+								<button class="filter-chip active" data-filter="mid">Media quota</button>
+								<button class="filter-chip active" data-filter="high">Alta quota</button>
+							</div>
+							<button id="toggle-ships-button" class="feature-button" type="button" data-i18n="btn.ships">Navi</button>
+							<button id="toggle-traffic-button" class="feature-button" type="button" data-i18n="btn.traffic">Traffico stradale</button>
 						</div>
 					</details>
 
-					<!-- ── Situazioni ── -->
+					<!-- ── Economia ── -->
+				<details class="accordion-item">
+					<summary class="accordion-header">
+						<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="10" width="3" height="8" rx="1"/><rect x="8.5" y="6" width="3" height="12" rx="1"/><rect x="14" y="2" width="3" height="16" rx="1"/><path d="M5 10V7M10.5 6V3M15.5 2V0" stroke-width="1.2"/></svg>
+						<span class="acc-label" data-i18n="cat.economia">Economia</span>
+						<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+					</summary>
+					<div class="accordion-body sidebar-buttons">
+						<button id="toggle-economy-button" class="feature-button" type="button" data-i18n="btn.economy">Dati economici</button>
+						<div id="economy-filters" class="layer-filters" style="display:none">
+							<button class="filter-chip active" data-eco-metric="gdpB" data-i18n="eco.gdpB">PIB</button>
+							<button class="filter-chip" data-eco-metric="gdpPcUSD" data-i18n="eco.gdpPcUSD">PIB/cap</button>
+							<button class="filter-chip" data-eco-metric="worldSharePct" data-i18n="eco.worldSharePct">Quota</button>
+							<button class="filter-chip" data-eco-metric="exportB" data-i18n="eco.exportB">Export</button>
+							<button class="filter-chip" data-eco-metric="importB" data-i18n="eco.importB">Import</button>
+							<button class="filter-chip" data-eco-metric="gdpGrowthPct" data-i18n="eco.gdpGrowthPct">Crescita</button>
+						</div>
+					</div>
+				</details>
+
+				<!-- ── Antropologia ── -->
+				<details class="accordion-item">
+					<summary class="accordion-header">
+						<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="6" r="3"/><circle cx="13" cy="6" r="3"/><path d="M1 17c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6"/></svg>
+						<span class="acc-label" data-i18n="cat.antropologia">Antropologia</span>
+						<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+					</summary>
+					<div class="accordion-body sidebar-buttons">
+						<button id="toggle-anthropology-button" class="feature-button" type="button" data-i18n="btn.anthropology">Dati demografici</button>
+						<div id="anthropology-filters" class="layer-filters" style="display:none">
+							<button class="filter-chip active" data-anthro-metric="popM" data-i18n="anthro.popM">Popolazione</button>
+							<button class="filter-chip" data-anthro-metric="birthRate" data-i18n="anthro.birthRate">Natalità</button>
+							<button class="filter-chip" data-anthro-metric="malePct" data-i18n="anthro.malePct">% Maschi</button>
+							<button class="filter-chip" data-anthro-metric="medianAge" data-i18n="anthro.medianAge">Età med.</button>
+							<button class="filter-chip" data-anthro-metric="u14pct" data-i18n="anthro.u14pct">0–14 anni</button>
+							<button class="filter-chip" data-anthro-metric="plus65pct" data-i18n="anthro.plus65pct">65+ anni</button>
+						</div>
+					</div>
+				</details>
+
+				<!-- ── Situazioni ── -->
 					<details class="accordion-item">
 						<summary class="accordion-header">
 							<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 5v5.5l3 2"/></svg>
@@ -237,6 +290,7 @@
 						<div class="accordion-body sidebar-buttons">
 							<button id="toggle-earth-interior-button" class="feature-button" type="button" data-i18n="btn.earthInterior">Strati interni della Terra</button>
 							<button id="toggle-em-field-button" class="feature-button" type="button" data-i18n="btn.emField">Campo elettromagnetico</button>
+							<button id="toggle-water-bodies-button" class="feature-button" type="button" data-i18n="btn.waterBodies">Laghi e fiumi</button>
 							<div id="earth-layer-toggles" class="layer-toggles" style="display:none">
 								<button class="layer-toggle-btn" data-layer="0" type="button">Mantello sup.</button>
 								<button class="layer-toggle-btn" data-layer="1" type="button">Mantello inf.</button>
@@ -329,6 +383,24 @@
 			</section>
 		</div>
 		<div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
-		<div id="status-bar"><span id="sb-zoom"></span></div>
+		<!-- Floating info card for aircraft/satellite selection -->
+		<div id="entity-card" class="entity-card" style="display:none">
+			<button id="entity-card-close" class="entity-card-close" type="button">&times;</button>
+			<div id="entity-card-title" class="entity-card-title"></div>
+			<div id="entity-card-subtitle" class="entity-card-subtitle"></div>
+			<div id="entity-card-body" class="entity-card-body"></div>
+		</div>
+		<div id="status-bar">
+			<span id="sb-zoom"></span>
+			<span id="sb-weather" class="sb-item" style="display:none"></span>
+			<span id="sb-wind" class="sb-item" style="display:none"></span>
+			<span id="sb-satellites" class="sb-item" style="display:none"></span>
+			<span id="sb-aircraft" class="sb-item" style="display:none"></span>
+			<span id="sb-ships" class="sb-item" style="display:none"></span>
+			<span id="sb-traffic" class="sb-item" style="display:none"></span>
+			<span id="sb-lightning" class="sb-item" style="display:none"></span>
+			<span id="sb-clouds" class="sb-item" style="display:none"></span>
+			<span id="sb-osm" class="sb-item" style="display:none"></span>
+		</div>
 	</body>
 </html>
