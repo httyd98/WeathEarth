@@ -41,9 +41,56 @@ import {
 
 export { loadStoredProviderId, storeProviderId, getStoredApiKey, storeApiKey };
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Select `count` evenly-spaced items from an array */
+function _evenlySpaced(arr, count) {
+  if (count >= arr.length) return arr;
+  const result = [];
+  const step = arr.length / count;
+  for (let i = 0; i < count; i++) {
+    result.push(arr[Math.floor(i * step)]);
+  }
+  return result;
+}
+
+// ── Daily limit cooldown ────────────────────────────────────────────────────
+// When Open-Meteo daily limit is hit, remember it and don't retry until next UTC day.
+let _dailyLimitHitAt = 0; // timestamp (ms) when daily limit was detected
+
+function _isDailyLimitCooldownActive() {
+  if (!_dailyLimitHitAt) return false;
+  // Check if we're still on the same UTC day
+  const hitDate = new Date(_dailyLimitHitAt).toISOString().slice(0, 10);
+  const nowDate = new Date().toISOString().slice(0, 10);
+  if (hitDate !== nowDate) {
+    // New day — reset cooldown
+    _dailyLimitHitAt = 0;
+    console.log("[Open-Meteo] New UTC day — daily limit cooldown reset.");
+    return false;
+  }
+  return true;
+}
+
+function _setDailyLimitCooldown() {
+  _dailyLimitHitAt = Date.now();
+  // Persist to localStorage so it survives page reload
+  try {
+    localStorage.setItem("terracast:dailyLimitHitAt", String(_dailyLimitHitAt));
+  } catch { /* ignore */ }
+}
+
+// Restore cooldown from localStorage on module load
+try {
+  const stored = localStorage.getItem("terracast:dailyLimitHitAt");
+  if (stored) _dailyLimitHitAt = parseInt(stored, 10) || 0;
+} catch { /* ignore */ }
+
 export async function fetchOpenMeteoBatch(points) {
-  const latitude = points.map((point) => point.lat).join(",");
-  const longitude = points.map((point) => point.lon).join(",");
+  // Open-Meteo's global NWP grids don't extend to the exact geographic poles.
+  // Clamp lat to ±89.9 to ensure valid grid lookups for polar sample points.
+  const latitude  = points.map((p) => Math.max(-89.9, Math.min(89.9, p.lat))).join(",");
+  const longitude = points.map((p) => p.lon).join(",");
   const url = new URL(OPEN_METEO_FORECAST_ENDPOINT);
 
   url.searchParams.set("latitude", latitude);
@@ -120,11 +167,29 @@ export async function fetchOpenMeteoBatch(points) {
   return Array.isArray(payload) ? payload : [payload];
 }
 
+/**
+ * Detect if a 429 error is a daily limit exhaustion (no point retrying)
+ * vs a per-minute rate limit (worth retrying after backoff).
+ */
+function _isDailyLimitExhausted(error) {
+  const reason = (error?.reason ?? "").toLowerCase();
+  return reason.includes("daily") || reason.includes("tomorrow") || reason.includes("limit exceeded");
+}
+
 export async function fetchOpenMeteoGlobal(points) {
+  // Check daily limit cooldown — don't even try if we already hit it today
+  if (_isDailyLimitCooldownActive()) {
+    const err = new Error("Open-Meteo daily limit still active (cooldown until next UTC day)");
+    err.status = 429;
+    err.isDailyLimit = true;
+    throw err;
+  }
+
   const result = [];
   const batches = chunk(points, REQUEST_BATCH_SIZE);
   let failedBatches = 0;
   let quotaExhausted = false;
+  let dailyLimitHit = false;
   let consecutiveQuotaFails = 0;
 
   // Adaptive delay: starts at BATCH_DELAY_MS, doubles each time a 429 is seen
@@ -144,6 +209,19 @@ export async function fetchOpenMeteoGlobal(points) {
       } catch (error) {
         const isRateLimited = error.status === 429;
         if (isRateLimited) saw429 = true;
+
+        // If daily limit is exhausted, don't bother retrying — bail immediately
+        if (isRateLimited && _isDailyLimitExhausted(error)) {
+          dailyLimitHit = true;
+          _setDailyLimitCooldown();
+          console.warn(
+            `[Open-Meteo] Daily API limit exhausted on batch ${batchIndex + 1}/${batches.length}. ` +
+            `Skipping all remaining batches.`
+          );
+          consecutiveQuotaFails = 99; // force bail
+          break;
+        }
+
         const hasRetriesLeft = attempt < MAX_BATCH_RETRIES;
 
         if (hasRetriesLeft) {
@@ -154,7 +232,7 @@ export async function fetchOpenMeteoGlobal(points) {
             ? `429: ${error.reason ?? "rate limited"}`
             : error.message?.slice(0, 40);
           console.warn(
-            `Open-Meteo batch ${batchIndex + 1}/${batches.length} ` +
+            `[Open-Meteo] batch ${batchIndex + 1}/${batches.length} ` +
             `error (${errorDetail}), ` +
             `retry ${attempt + 1}/${MAX_BATCH_RETRIES} in ${retryDelay}ms`
           );
@@ -163,7 +241,7 @@ export async function fetchOpenMeteoGlobal(points) {
           if (isRateLimited) consecutiveQuotaFails++;
           else consecutiveQuotaFails = 0;
           console.error(
-            `Open-Meteo batch ${batchIndex + 1}/${batches.length} failed permanently:`,
+            `[Open-Meteo] batch ${batchIndex + 1}/${batches.length} failed permanently:`,
             error
           );
           break;
@@ -175,7 +253,6 @@ export async function fetchOpenMeteoGlobal(points) {
     // double the inter-batch delay to avoid hitting the rate limit again.
     if (saw429) {
       currentDelay = Math.min(currentDelay * 2, 10000);
-      console.warn(`Adaptive delay increased to ${currentDelay}ms after 429 on batch ${batchIndex + 1}`);
     }
 
     if (!success) {
@@ -185,14 +262,13 @@ export async function fetchOpenMeteoGlobal(points) {
       consecutiveQuotaFails = 0;
     }
 
-    // Only bail out after 2+ consecutive 429-exhausted batches
-    if (consecutiveQuotaFails >= 2) {
+    // Bail out after 2+ consecutive 429-exhausted batches or daily limit hit
+    if (consecutiveQuotaFails >= 2 || dailyLimitHit) {
       quotaExhausted = true;
       const remaining = batches.slice(batchIndex + 1);
       if (remaining.length > 0) {
         console.warn(
-          `Open-Meteo quota esaurita (${consecutiveQuotaFails} fallimenti consecutivi). ` +
-          `Salto i ${remaining.length} batch rimanenti.`
+          `[Open-Meteo] Quota exhausted. Skipping ${remaining.length} remaining batches.`
         );
         for (const rem of remaining) {
           failedBatches += 1;
@@ -213,14 +289,19 @@ export async function fetchOpenMeteoGlobal(points) {
   const hasAnyData = entries.some(Boolean);
 
   if (quotaExhausted && !hasAnyData) {
-    const quotaError = new Error("Open-Meteo quota esaurita (429 consecutivi su più batch)");
+    const quotaError = new Error(
+      dailyLimitHit
+        ? "Open-Meteo daily API limit exceeded"
+        : "Open-Meteo quota exhausted (consecutive 429s)"
+    );
     quotaError.status = 429;
+    quotaError.isDailyLimit = dailyLimitHit;
     throw quotaError;
   }
 
   if (quotaExhausted) {
     console.warn(
-      `Open-Meteo quota raggiunta ma ${entries.filter(Boolean).length}/${entries.length} punti recuperati. Restituzione dati parziali.`
+      `[Open-Meteo] Quota reached but ${entries.filter(Boolean).length}/${entries.length} points retrieved. Returning partial data.`
     );
   }
 
@@ -316,6 +397,68 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
   }
 
   // ── Phase 2: Fetch live data ────────────────────────────────────────
+  // If Open-Meteo daily limit is active, try Yr.no as fallback provider
+  if (_isDailyLimitCooldownActive()) {
+    const yrProvider = PROVIDERS.yr;
+    if (yrProvider?.supportsGlobal) {
+      // Find indices of points that don't have data yet
+      const missingIndices = [];
+      for (let i = 0; i < weatherState.points.length; i++) {
+        if (!weatherState.points[i].current) missingIndices.push(i);
+      }
+      // Cap at 300 points to avoid overwhelming Yr.no (single-point API)
+      const YR_FALLBACK_LIMIT = 300;
+      const indicesToFetch = missingIndices.length > YR_FALLBACK_LIMIT
+        ? _evenlySpaced(missingIndices, YR_FALLBACK_LIMIT)
+        : missingIndices;
+
+      if (indicesToFetch.length > 0) {
+        console.log(`[Fallback] Open-Meteo daily limit active. Trying Yr.no for ${indicesToFetch.length}/${missingIndices.length} missing points...`);
+        setStatus(`Open-Meteo esaurito. Recupero ${indicesToFetch.length} punti da Yr.no...`);
+        try {
+          const pointsToFetchYr = indicesToFetch.map(i => samplePoints[i]);
+          const { entries } = await yrProvider.fetchGlobal(pointsToFetchYr);
+          let updatedCount = 0;
+          entries.forEach((entry, fetchIdx) => {
+            if (!entry) return;
+            const globalIdx = indicesToFetch[fetchIdx];
+            weatherState.points[globalIdx].current = entry;
+            updatedCount++;
+          });
+          if (updatedCount > 0) {
+            saveWeatherCache(weatherState.points);
+            weatherState.lastUpdatedAt = new Date();
+            weatherState.globalDataProvider = yrProvider.name;
+            updateMarkerMeshes();
+            updateHeatmap();
+            updateCloudLayer();
+            updatePrecipitationLayer();
+            updateHud();
+            _onWeatherRefreshed?.();
+            const totalWithData = weatherState.points.filter(p => p.current).length;
+            setStatus(`Yr.no fallback: ${updatedCount} punti aggiornati (${totalWithData}/${weatherState.points.length} totali)`);
+          } else {
+            setStatus("Yr.no fallback: nessun nuovo dato. Dati precedenti mantenuti.");
+          }
+          weatherState.nextRefreshAt = new Date(Date.now() + REFRESH_INTERVAL_MS);
+          return;
+        } catch (yrErr) {
+          console.warn("[Yr.no fallback] Failed:", yrErr.message);
+          // Fall through to show cached data status
+        }
+      }
+    }
+    // No fallback possible — show cached data status
+    const stillHasData = weatherState.points.some((p) => p.current !== null);
+    if (stillHasData) {
+      weatherState.nextRefreshAt = new Date(Date.now() + REFRESH_INTERVAL_MS);
+      setStatus("Limite Open-Meteo: quota esaurita. Dati precedenti mantenuti.");
+    } else {
+      setStatus("Limite Open-Meteo: quota esaurita. Nessun dato disponibile.");
+    }
+    return;
+  }
+
   try {
     if (!weatherState.showMarkers) {
       const summary = await fetchGlobalSummary(summaryPoints);
@@ -382,8 +525,50 @@ async function _doRefreshGlobalWeather(forceStatus, samplePoints, summaryPoints)
       setStatus(t("status.feedSynced", { count: updatedCount, provider: globalProvider.name }));
     }
   } catch (error) {
-    console.error("refreshGlobalWeather live fetch failed:", error);
     const isQuota = error?.status === 429 || String(error?.message).includes("429");
+    if (isQuota) {
+      console.warn("[Open-Meteo] Quota/rate limit during refresh:", error.message);
+    } else {
+      console.error("refreshGlobalWeather live fetch failed:", error);
+    }
+
+    // ── Yr.no fallback on quota errors ────────────────────────────────
+    if (isQuota && PROVIDERS.yr?.supportsGlobal) {
+      try {
+        console.log("[Fallback] Attempting Yr.no fallback after Open-Meteo 429...");
+        setStatus("Open-Meteo esaurito. Recupero dati da Yr.no...");
+        const missingPoints = samplePoints.filter((_, i) => !weatherState.points[i]?.current);
+        if (missingPoints.length > 0) {
+          const { entries } = await PROVIDERS.yr.fetchGlobal(missingPoints);
+          let yrUpdated = 0;
+          let missingIdx = 0;
+          for (let i = 0; i < samplePoints.length; i++) {
+            if (weatherState.points[i]?.current) continue;
+            const entry = entries[missingIdx++];
+            if (entry) {
+              weatherState.points[i].current = entry;
+              yrUpdated++;
+            }
+          }
+          if (yrUpdated > 0) {
+            saveWeatherCache(weatherState.points);
+            weatherState.lastUpdatedAt = new Date();
+            weatherState.globalDataProvider = "Yr.no (fallback)";
+            updateMarkerMeshes();
+            updateHeatmap();
+            updateCloudLayer();
+            updatePrecipitationLayer();
+            updateHud();
+            _onWeatherRefreshed?.();
+            setStatus(`Yr.no fallback: ${yrUpdated} punti aggiornati`);
+            weatherState.nextRefreshAt = new Date(Date.now() + REFRESH_INTERVAL_MS);
+            return;
+          }
+        }
+      } catch (yrErr) {
+        console.warn("[Yr.no fallback] Failed:", yrErr.message);
+      }
+    }
 
     // If we already have data in memory (from Phase 1 or a previous fetch),
     // keep it and just warn — no need to reload from cache.
@@ -506,7 +691,11 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
         : t("status.pointSelected", { provider: activeProvider.name })
     );
   } catch (error) {
-    console.error(`[${activeProvider.name}] fetchCurrent/fetchForecast failed:`, error);
+    if (error?.status === 429) {
+      console.warn(`[${activeProvider.name}] fetchCurrent/fetchForecast 429 — trying fallback`);
+    } else {
+      console.error(`[${activeProvider.name}] fetchCurrent/fetchForecast failed:`, error);
+    }
 
     if (activeProvider.id !== PROVIDERS.openMeteo.id) {
       const primaryErrorStatus = error?.status ?? 0;
@@ -573,13 +762,52 @@ export async function refreshSelectedPointWeather(forceStatus = false) {
       }
     }
 
-    // Active provider IS Open-Meteo — show specific error
+    // Active provider IS Open-Meteo — try Yr.no fallback on 429
+    const errorStatus = error?.status ?? 0;
+    if (errorStatus === 429 && PROVIDERS.yr) {
+      try {
+        console.log("[Fallback] Open-Meteo 429 on point query, trying Yr.no...");
+        const yrFallback = PROVIDERS.yr;
+        const [yrCurrentResult, yrForecastResult] = await Promise.allSettled([
+          yrFallback.fetchCurrent({
+            lat: weatherState.selectedPoint.lat,
+            lon: weatherState.selectedPoint.lon
+          }),
+          yrFallback.fetchForecast({
+            lat: weatherState.selectedPoint.lat,
+            lon: weatherState.selectedPoint.lon
+          })
+        ]);
+
+        if (requestToken !== weatherState.selectionRequestToken) return;
+
+        if (yrCurrentResult.status === "fulfilled") {
+          weatherState.selectedPoint.current = yrCurrentResult.value.current;
+        }
+        if (yrForecastResult.status === "fulfilled") {
+          weatherState.selectedPoint.forecast = yrForecastResult.value.forecast;
+          renderForecast(yrForecastResult.value.forecast);
+        } else {
+          renderForecast([]);
+        }
+
+        if (yrCurrentResult.status === "fulfilled") {
+          weatherState.selectedPoint.providerName = `${yrFallback.name} (fallback)`;
+          updateSelectionPanel();
+          setStatus(`Dati da Yr.no (Open-Meteo quota esaurita)`);
+          return;
+        }
+      } catch (yrErr) {
+        console.warn("[Yr.no point fallback] Failed:", yrErr.message);
+      }
+    }
+
+    // No fallback worked — show error
     weatherState.selectedPoint.current = null;
     weatherState.selectedPoint.forecast = null;
     weatherState.selectedPoint.providerName = activeProvider.name;
     updateSelectionPanel();
     renderForecast([]);
-    const errorStatus = error?.status ?? 0;
     let errorMsg;
     if (errorStatus === 401 || errorStatus === 403) {
       errorMsg = t("status.keyInvalid", { provider: activeProvider.name });

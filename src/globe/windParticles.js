@@ -26,8 +26,8 @@ const GRID_SIZE = GRID_W * GRID_H;
 const N = 30_000;
 
 // VISUAL scale: how many degrees of lat/lon to move per second per m/s of wind speed.
-// 1.0 = clearly visible flowing movement.
-const VIS_SPEED_SCALE = 1.0;
+// 0.6 = realistic visible flowing movement (previously 1.0 was too fast)
+const VIS_SPEED_SCALE = 0.6;
 
 // Particle surface radius (just above the globe)
 const PARTICLE_RADIUS = GLOBE_RADIUS * 1.042;
@@ -77,6 +77,9 @@ const DEG2RAD = Math.PI / 180;
 
 // Color palette by wind speed (m/s) — simplified 3-stop: blue → cyan → orange
 const _color = new THREE.Color();
+
+// Track which wind levels have actual data from the last build
+let _availableLevels = new Set(["10m"]);
 
 function _speedToColor(speed_ms) {
   if (speed_ms < 5) {
@@ -228,8 +231,52 @@ for (let t = 0; t < TRAIL_LEN; t++) {
 }
 
 /**
+ * Scan weather station data and return the Set of wind levels that have
+ * real data from at least MIN_STATIONS_FOR_LEVEL stations.
+ */
+const MIN_STATIONS_FOR_LEVEL = 5;
+
+export function getAvailableWindLevels(points) {
+  const levels = new Set();
+  const ALL_LEVELS = [
+    "10m",
+    "1000hPa","925hPa","850hPa","700hPa","600hPa","500hPa","400hPa",
+    "300hPa","250hPa","200hPa","150hPa","100hPa","70hPa","50hPa",
+    "30hPa","20hPa","10hPa",
+    "5hPa","1hPa","0.4hPa","0.1hPa","0.01hPa"
+  ];
+
+  for (const lvl of ALL_LEVELS) {
+    let count = 0;
+    for (const p of points) {
+      if (!p.current) continue;
+      if (lvl === "10m") {
+        if (p.current.windSpeed != null && p.current.windDirection != null) count++;
+      } else {
+        const wl = p.current.windLevels?.[lvl];
+        if (wl?.speed != null && wl?.direction != null) count++;
+      }
+      if (count >= MIN_STATIONS_FOR_LEVEL) break;
+    }
+    if (count >= MIN_STATIONS_FOR_LEVEL) {
+      levels.add(lvl);
+    }
+  }
+
+  // Always include 10m as minimum
+  levels.add("10m");
+  return levels;
+}
+
+/**
  * Build the 128×64 IDW wind field from weather station points.
  * Each point must have: { lat, lon, current: { windSpeed (km/h), windDirection (deg) } }
+ *
+ * Wind direction convention (meteorological): direction wind comes FROM.
+ *   0° = from north, 90° = from east, 180° = from south, 270° = from west.
+ * Decomposition to u,v components:
+ *   u (eastward)  = -speed * sin(dir)  → positive = wind blowing eastward
+ *   v (northward) = -speed * cos(dir)  → positive = wind blowing northward
  *
  * Where no station data exists within IDW_MAX_DIST, a climatological zonal wind
  * fallback is used so particles always show movement.
@@ -237,17 +284,37 @@ for (let t = 0; t < TRAIL_LEN; t++) {
 export function buildWindField(points, level = '10m') {
   const stations = [];
   for (const p of points) {
+    if (!p.current) continue;
     // Try altitude-specific wind data first, fall back to surface 10m data
-    const wl = p.current?.windLevels?.[level];
-    const ws = wl?.speed ?? p.current?.windSpeed ?? null;
-    const wd = wl?.direction ?? p.current?.windDirection ?? null;
-    if (ws == null || wd == null) continue;
+    let ws, wd;
+    if (level === "10m") {
+      ws = p.current.windSpeed ?? null;
+      wd = p.current.windDirection ?? null;
+    } else {
+      const wl = p.current.windLevels?.[level];
+      ws = wl?.speed ?? null;
+      wd = wl?.direction ?? null;
+    }
+    if (ws == null || wd == null || ws < 0) continue;
+
+    // Open-Meteo wind speed is in km/h → convert to m/s
     const speed_ms = ws / 3.6;
-    const dir_rad  = wd * (Math.PI / 180);
+    // Meteorological convention: direction wind comes FROM
+    // u = eastward component (positive = blowing east)
+    // v = northward component (positive = blowing north)
+    const dir_rad = wd * DEG2RAD;
     const u = -speed_ms * Math.sin(dir_rad);
     const v = -speed_ms * Math.cos(dir_rad);
-    if (isNaN(u) || isNaN(v)) continue;
+    if (!isFinite(u) || !isFinite(v)) continue;
     stations.push({ lat: p.lat, lon: p.lon, u, v, speed: speed_ms });
+  }
+
+  // Track available levels
+  _availableLevels = getAvailableWindLevels(points);
+
+  // Log station count for debugging
+  if (stations.length < 10) {
+    console.warn(`[Wind] Only ${stations.length} stations with data for level ${level}`);
   }
 
   for (let gy = 0; gy < GRID_H; gy++) {
@@ -303,6 +370,8 @@ export function initWindParticles() {
  * @param {number} dt - delta time in seconds
  */
 export function updateWindParticles(dt) {
+  if (!windParticles.visible) return; // Safety: don't update if invisible
+
   const posAttr   = _geometry.attributes.position;
   const colorAttr = _geometry.attributes.color;
 
@@ -332,9 +401,12 @@ export function updateWindParticles(dt) {
     const { u, v, speed } = _sampleField(lat, lon);
 
     // Advect particle position
+    // u = eastward wind component (m/s), v = northward wind component (m/s)
+    // dlat = v component moves particles north/south
+    // dlon = u component moves particles east/west (corrected for latitude convergence)
     const cosLat = Math.cos(lat * DEG2RAD);
     const dlat = v * VIS_SPEED_SCALE * dt;
-    const dlon = cosLat > 0.001 ? (u * VIS_SPEED_SCALE / cosLat) * dt : 0;
+    const dlon = cosLat > 0.01 ? (u * VIS_SPEED_SCALE / cosLat) * dt : 0;
 
     _lat[i] = Math.max(-89.9, Math.min(89.9, lat + dlat));
     _lon[i] = ((lon + dlon + 180) % 360 + 360) % 360 - 180;
@@ -366,7 +438,7 @@ export function updateWindParticles(dt) {
   for (let t = 0; t < TRAIL_LEN; t++) {
     _trailGeometries[t].attributes.position.needsUpdate = true;
     _trailGeometries[t].attributes.color.needsUpdate = true;
-    _trailMeshes[t].visible = windParticles.visible;
+    _trailMeshes[t].visible = true; // visible because windParticles is visible (checked above)
     _trailMeshes[t].material.size = _material.size * (0.7 - t * 0.15);
   }
 }
@@ -389,10 +461,20 @@ function _updatePositions(withColor) {
   if (withColor) _geometry.attributes.color.needsUpdate = true;
 }
 
-/** Set visibility of all trail meshes (call when toggling wind on/off). */
+/**
+ * Set visibility of all trail meshes (call when toggling wind on/off).
+ * When hiding, also clear trail buffers to prevent ghost particles.
+ */
 export function setWindTrailsVisible(visible) {
   for (let t = 0; t < TRAIL_LEN; t++) {
     _trailMeshes[t].visible = visible;
+    if (!visible) {
+      // Zero out trail buffers so no residual particles linger
+      _trailPositions[t].fill(0);
+      _trailColors[t].fill(0);
+      _trailGeometries[t].attributes.position.needsUpdate = true;
+      _trailGeometries[t].attributes.color.needsUpdate = true;
+    }
   }
 }
 
@@ -402,4 +484,9 @@ export function isWindFieldEmpty() {
     if (_fieldSpeed[i] > 0) return false;
   }
   return true;
+}
+
+/** Returns the set of wind levels that have real data. */
+export function getAvailableLevels() {
+  return _availableLevels;
 }

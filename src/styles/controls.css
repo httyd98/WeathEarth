@@ -1,14 +1,14 @@
 .search-dock {
   position: absolute;
   left: 50%;
-  top: 16px;
+  top: 12px;
   transform: translateX(-50%);
-  width: min(560px, calc(100vw - 24px));
+  width: min(520px, calc(100vw - 24px));
   z-index: 2;
-  padding: 8px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(151, 192, 255, 0.10);
-  background: rgba(7, 16, 31, 0.55);
+  padding: 4px 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(151, 192, 255, 0.06);
+  background: rgba(7, 16, 31, 0.40);
   box-shadow: none;
 }
 

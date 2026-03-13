@@ -90,7 +90,9 @@ export const PROVIDERS = {
 
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Open-Meteo current request failed: ${response.status}`);
+        const err = new Error(`Open-Meteo current request failed: ${response.status}`);
+        err.status = response.status;
+        throw err;
       }
 
       const payload = await response.json();
@@ -112,7 +114,9 @@ export const PROVIDERS = {
 
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Open-Meteo forecast request failed: ${response.status}`);
+        const err = new Error(`Open-Meteo forecast request failed: ${response.status}`);
+        err.status = response.status;
+        throw err;
       }
 
       const payload = await response.json();
@@ -236,14 +240,16 @@ export const PROVIDERS = {
     keyRequired: false,
     keyOptional: false,
     get keyNote() { return t("provider.note.yr"); },
-    supportsGlobal: false,
+    supportsGlobal: true,
     get quotaNote() { return t("quota.yrFree"); },
     capabilities: { cloudCover: true, precipitation: true },
     async fetchCurrent({ lat, lon }) {
       const url = new URL(YR_FORECAST_ENDPOINT);
       url.searchParams.set("lat", String(Math.round(lat * 10000) / 10000));
       url.searchParams.set("lon", String(Math.round(lon * 10000) / 10000));
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: { "User-Agent": "TerraCast/1.0 github.com/terracast" }
+      });
       if (!response.ok) {
         throw new Error(`Yr.no current request failed: ${response.status}`);
       }
@@ -257,7 +263,9 @@ export const PROVIDERS = {
       const url = new URL(YR_FORECAST_ENDPOINT);
       url.searchParams.set("lat", String(Math.round(lat * 10000) / 10000));
       url.searchParams.set("lon", String(Math.round(lon * 10000) / 10000));
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: { "User-Agent": "TerraCast/1.0 github.com/terracast" }
+      });
       if (!response.ok) {
         throw new Error(`Yr.no forecast request failed: ${response.status}`);
       }
@@ -265,6 +273,61 @@ export const PROVIDERS = {
       return {
         forecast: normalizeYrForecast(payload),
         quota: { note: this.quotaNote }
+      };
+    },
+    async fetchGlobal(points) {
+      // MET Norway only supports single-point queries, so we use
+      // concurrent requests with concurrency limiting (20 at a time).
+      const CONCURRENCY = 20;
+      const DELAY_BETWEEN_WAVES = 200; // ms between waves to stay under rate limits
+      const entries = new Array(points.length).fill(null);
+      let failedCount = 0;
+
+      for (let wave = 0; wave < points.length; wave += CONCURRENCY) {
+        const batch = points.slice(wave, wave + CONCURRENCY);
+        const promises = batch.map(async (p, localIdx) => {
+          const idx = wave + localIdx;
+          try {
+            const url = new URL(YR_FORECAST_ENDPOINT);
+            // Clamp to ±89.9 — MET Norway's AROME model doesn't cover the exact poles
+            const clampedLat = Math.max(-89.9, Math.min(89.9, p.lat));
+            url.searchParams.set("lat", String(Math.round(clampedLat * 100) / 100));
+            url.searchParams.set("lon", String(Math.round(p.lon * 100) / 100));
+            const resp = await fetch(url, {
+              headers: { "User-Agent": "TerraCast/1.0 github.com/terracast" }
+            });
+            if (!resp.ok) {
+              if (resp.status === 429) throw new Error("rate_limited");
+              return; // skip silently
+            }
+            const payload = await resp.json();
+            entries[idx] = normalizeYrEntry(payload);
+          } catch (err) {
+            if (err.message === "rate_limited") throw err; // propagate
+            failedCount++;
+          }
+        });
+        try {
+          await Promise.all(promises);
+        } catch (err) {
+          if (err.message === "rate_limited") {
+            console.warn(`[Yr.no] Rate limited at wave ${Math.floor(wave / CONCURRENCY) + 1}. Stopping.`);
+            break;
+          }
+        }
+        // Small delay between waves
+        if (wave + CONCURRENCY < points.length) {
+          await new Promise(r => setTimeout(r, DELAY_BETWEEN_WAVES));
+        }
+      }
+
+      const successCount = entries.filter(Boolean).length;
+      console.log(`[Yr.no] fetchGlobal: ${successCount}/${points.length} points, ${failedCount} failed`);
+
+      return {
+        entries,
+        quota: { note: this.quotaNote },
+        failedBatches: failedCount
       };
     }
   },
@@ -520,24 +583,51 @@ export function normalizeWeatherApiForecast(entry) {
   }));
 }
 
+// Map Yr.no symbol codes to WMO weather codes for compatibility with heatmap/lightning
+const YR_SYMBOL_TO_WMO = {
+  clearsky: 0, fair: 1, partlycloudy: 2, cloudy: 3, fog: 45,
+  lightrain: 61, rain: 63, heavyrain: 65,
+  lightrainshowers: 80, rainshowers: 81, heavyrainshowers: 82,
+  lightsleet: 66, sleet: 67, heavysleet: 67,
+  lightsleetshowers: 68, sleetshowers: 68, heavysleetshowers: 68,
+  lightsnow: 71, snow: 73, heavysnow: 75,
+  lightsnowshowers: 85, snowshowers: 86, heavysnowshowers: 86,
+  lightrainandthunder: 95, rainandthunder: 95, heavyrainandthunder: 99,
+  lightsleetandthunder: 95, sleetandthunder: 95,
+  lightsnowandthunder: 95, snowandthunder: 95,
+  lightrainshowersandthunder: 95, rainshowersandthunder: 96, heavyrainshowersandthunder: 99,
+  lightsleetshowersandthunder: 95, sleetshowersandthunder: 95,
+  lightsnowshowersandthunder: 95, snowshowersandthunder: 95,
+};
+
+function _yrSymbolToWMO(symbol) {
+  if (!symbol) return null;
+  // Strip _day/_night/_polartwilight suffix
+  const base = symbol.replace(/_(day|night|polartwilight)$/, "");
+  return YR_SYMBOL_TO_WMO[base] ?? null;
+}
+
 export function normalizeYrEntry(payload) {
   const instant = payload?.properties?.timeseries?.[0]?.data?.instant?.details ?? {};
   const next1h = payload?.properties?.timeseries?.[0]?.data?.next_1_hours ?? {};
   const symbol = next1h?.summary?.symbol_code ?? "fair_day";
   const isDay = !symbol.includes("night");
+  const precipitation = next1h?.details?.precipitation_amount ?? 0;
   return {
     temperature: instant.air_temperature ?? null,
     humidity: instant.relative_humidity ?? null,
     pressure: instant.air_pressure_at_sea_level ?? null,
-    windSpeed: instant.wind_speed ?? null,
-    weatherCode: null,
+    windSpeed: instant.wind_speed != null ? instant.wind_speed * 3.6 : null, // m/s → km/h
+    windDirection: instant.wind_from_direction ?? null,
+    weatherCode: _yrSymbolToWMO(symbol),
     conditionLabel: weatherState.language === 'en'
       ? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
       : (YR_SYMBOL_IT[symbol] ?? symbol.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())),
     cloudCover: instant.cloud_area_fraction ?? null,
-    precipitation: instant.precipitation_amount ?? 0,
+    precipitation,
+    cape: null, // MET Norway doesn't provide CAPE
     isDay,
-    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "m/s", precipitation: "mm" }
+    units: { temperature: "°C", humidity: "%", pressure: "hPa", wind: "km/h", precipitation: "mm" }
   };
 }
 

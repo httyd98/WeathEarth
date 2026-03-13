@@ -21,8 +21,8 @@ import { buildCloudCanvas } from "./globe/cloudLayer.js";
 import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
 import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
 import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh } from "./globe/rainViewer.js";
-import { buildWindField, updateWindParticles, initWindParticles, windParticles, isWindFieldEmpty, setWindTrailsVisible } from "./globe/windParticles.js";
-import { lightningMesh, buildLightningField, updateLightning } from "./globe/lightningLayer.js";
+import { buildWindField, updateWindParticles, initWindParticles, windParticles, isWindFieldEmpty, setWindTrailsVisible, getAvailableLevels } from "./globe/windParticles.js";
+import { lightningMesh, buildLightningField, updateLightning, disableLightning } from "./globe/lightningLayer.js";
 import { timeZoneMesh, buildTimeZoneCanvas, updateTimeZoneLayer, highlightZoneAtUV, clearTimeZoneHighlight } from "./globe/timeZoneLayer.js";
 import { initEarthInterior, enableEarthInterior, disableEarthInterior, updateEarthInterior, toggleLayerVisibility, hasActiveFullSphereLayers } from "./globe/earthInterior.js";
 import { enableEmField, disableEmField } from "./globe/emFieldLayer.js";
@@ -185,6 +185,7 @@ initSkyBackground(scene, starField);
 // On each successful global weather refresh: rebuild wind field + update toggle labels
 setOnWeatherRefreshed(() => {
   buildWindField(weatherState.points, weatherState.windAltitudeLevel);
+  if (weatherState.showWind) _syncWindSlider(); // sync slider to available data
   if (weatherState.showLightning) buildLightningField(weatherState.points);
   updateToggleButtons();
   // Also save to IndexedDB for larger/persistent cache
@@ -648,9 +649,10 @@ document.querySelectorAll("#cloud-switch .cloud-option").forEach(btn => {
       // Load actual satellite cloud imagery from NASA GIBS
       setStatus(t("status.satelliteLoading"));
       loadSatelliteCloudTexture()
-        .then(({ date, layer }) => {
-          const nrt = layer?.includes("_NRT") ? " · NRT" : "";
-          setStatus(t("status.satelliteLoaded", { date, nrt }));
+        .then(({ date, layers, sources }) => {
+          const nrt = layers?.includes("_NRT") ? " · NRT" : "";
+          const extra = sources > 1 ? ` · ${sources} satelliti` : "";
+          setStatus(t("status.satelliteLoaded", { date, nrt: nrt + extra }));
         })
         .catch(() => {
           // Fallback: IDW interpolation from weather data
@@ -678,15 +680,17 @@ dom.toggleHeatmapButton?.addEventListener("click", () => {
 });
 
 // Wind altitude levels mapping (slider index → param key)
-// Levels supported by Open-Meteo API: 10m, 1000–10 hPa
-// Levels beyond API support (5hPa, 1hPa, 0.4hPa, 0.1hPa, 0.01hPa) use extrapolation
-const WIND_LEVELS = [
+// All possible levels — the slider will only show levels with real data
+const ALL_WIND_LEVELS = [
   "10m",
   "1000hPa","925hPa","850hPa","700hPa","600hPa","500hPa","400hPa",
   "300hPa","250hPa","200hPa","150hPa","100hPa","70hPa","50hPa",
   "30hPa","20hPa","10hPa",
   "5hPa","1hPa","0.4hPa","0.1hPa","0.01hPa"
 ];
+
+// Currently active (filtered) levels for the slider — rebuilt when data updates
+let _activeWindLevels = ["10m"];
 
 // Approximate altitudes in km for each level
 const WIND_LEVEL_ALT_KM = {
@@ -701,15 +705,41 @@ const WIND_LEVEL_ALT_KM = {
   "0.01hPa": "~80 km"
 };
 
+/** Sync the wind slider max/labels to match only levels that have real data. */
+function _syncWindSlider() {
+  const available = getAvailableLevels();
+  // Filter ALL_WIND_LEVELS preserving order, keeping only those with data
+  _activeWindLevels = ALL_WIND_LEVELS.filter(l => available.has(l));
+  if (_activeWindLevels.length === 0) _activeWindLevels = ["10m"];
+
+  if (dom.windAltRange) {
+    dom.windAltRange.max = String(_activeWindLevels.length - 1);
+    // Clamp current value
+    const cur = parseInt(dom.windAltRange.value, 10);
+    if (cur >= _activeWindLevels.length) {
+      dom.windAltRange.value = "0";
+      weatherState.windAltitudeLevel = _activeWindLevels[0];
+    }
+    // If current level is no longer available, reset to 10m
+    if (!available.has(weatherState.windAltitudeLevel)) {
+      dom.windAltRange.value = "0";
+      weatherState.windAltitudeLevel = _activeWindLevels[0];
+    }
+  }
+  _updateWindAltLabel();
+}
+
 function _updateWindAltLabel() {
-  const lvl = WIND_LEVELS[parseInt(dom.windAltRange?.value ?? "0", 10)];
+  const idx = parseInt(dom.windAltRange?.value ?? "0", 10);
+  const lvl = _activeWindLevels[idx] ?? "10m";
   const alt = WIND_LEVEL_ALT_KM[lvl] ?? "";
   if (dom.windAltValue) dom.windAltValue.textContent = `${lvl} ${alt}`;
 }
 
 // Wind altitude slider change
 dom.windAltRange?.addEventListener("input", () => {
-  const lvl = WIND_LEVELS[parseInt(dom.windAltRange.value, 10)];
+  const idx = parseInt(dom.windAltRange.value, 10);
+  const lvl = _activeWindLevels[idx] ?? "10m";
   weatherState.windAltitudeLevel = lvl;
   _updateWindAltLabel();
   buildWindField(weatherState.points, lvl);
@@ -724,9 +754,13 @@ dom.toggleWindButton?.addEventListener("click", () => {
   if (dom.windAltitudeSlider) {
     dom.windAltitudeSlider.style.display = weatherState.showWind ? "" : "none";
   }
-  // Rebuild field on demand if no data yet (e.g., enabled before first refresh)
-  if (weatherState.showWind && isWindFieldEmpty()) {
-    buildWindField(weatherState.points, weatherState.windAltitudeLevel);
+  if (weatherState.showWind) {
+    // Rebuild field on demand if no data yet
+    if (isWindFieldEmpty()) {
+      buildWindField(weatherState.points, weatherState.windAltitudeLevel);
+    }
+    // Sync slider to show only levels with data
+    _syncWindSlider();
   }
   dom.toggleWindButton.classList.toggle("active", weatherState.showWind);
   updateToggleButtons();
@@ -742,18 +776,21 @@ dom.togglePrecipitationButton?.addEventListener("click", async () => {
     setStatus(t("status.radarLoading"));
     const result = await fetchAndApplyRainViewer();
     if (result) {
+      weatherState.useRainViewer = true;
       setStatus(t("status.radarLoaded", { age: result.ageMinutes }));
       startRainViewerRefresh(
         ({ ageMinutes }) => setStatus(t("status.radarLoaded", { age: ageMinutes })),
         () => setStatus(t("status.radarError"))
       );
     } else {
-      // RainViewer unavailable — use Gaussian interpolation from station data
+      // RainViewer + IMERG unavailable — fall back to Gaussian blobs from station data
+      weatherState.useRainViewer = false;
       setStatus(t("status.radarError"));
       const hadData = buildPrecipitationCanvas(weatherState.points);
       if (!hadData) setStatus(t("status.noPrecipitation"));
     }
   } else {
+    weatherState.useRainViewer = false;
     stopRainViewerRefresh();
   }
 
@@ -768,6 +805,8 @@ document.getElementById("toggle-lightning-button")?.addEventListener("click", ()
   lightningMesh.visible = weatherState.showLightning;
   if (weatherState.showLightning) {
     buildLightningField(weatherState.points);
+  } else {
+    disableLightning();
   }
   const btn = document.getElementById("toggle-lightning-button");
   btn?.classList.toggle("active", weatherState.showLightning);
@@ -917,8 +956,10 @@ document.getElementById("refresh-precipitation")?.addEventListener("click", asyn
     setStatus(t("status.radarLoading"));
     const result = await fetchAndApplyRainViewer();
     if (result) {
+      weatherState.useRainViewer = true;
       setStatus(t("status.radarLoaded", { age: result.ageMinutes }));
     } else {
+      weatherState.useRainViewer = false;
       setStatus(t("status.radarError"));
       buildPrecipitationCanvas(weatherState.points);
     }
