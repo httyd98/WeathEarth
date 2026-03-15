@@ -27,7 +27,7 @@ export const camera = new THREE.PerspectiveCamera(
   0.1,
   800
 );
-camera.position.set(1.6, 1.5, 12.8);
+camera.position.set(0, 1.5, 12.8);
 
 export const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
@@ -114,10 +114,13 @@ heatmapMesh.visible = false;
 globeGroup.add(heatmapMesh);
 
 export const cloudCoverCanvas = document.createElement("canvas");
-cloudCoverCanvas.width = 512;
-cloudCoverCanvas.height = 256;
+cloudCoverCanvas.width = 1024;
+cloudCoverCanvas.height = 512;
 export const cloudCoverTexture = new THREE.CanvasTexture(cloudCoverCanvas);
 cloudCoverTexture.colorSpace = THREE.SRGBColorSpace;
+cloudCoverTexture.generateMipmaps = false;
+cloudCoverTexture.minFilter = THREE.LinearFilter;
+cloudCoverTexture.magFilter = THREE.LinearFilter;
 export const cloudCoverMesh = new THREE.Mesh(
   new THREE.SphereGeometry(GLOBE_RADIUS * 1.039, 64, 32),
   new THREE.MeshBasicMaterial({

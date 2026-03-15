@@ -114,9 +114,15 @@ async function _fetchAircraft() {
     const resp = await _limiter.fetch(OPENSKY_URL);
     if (!resp.ok) return;
     const data = await resp.json();
-    _aircraft = (data.states ?? []).filter(s => {
-      return s[5] != null && s[6] != null && !s[8];
-    });
+    const fresh = (data.states ?? []).filter(s => s[5] != null && s[6] != null && !s[8]);
+    if (fresh.length === 0) return;
+    // Additive merge by ICAO24 — never delete existing aircraft
+    const freshMap = new Map(fresh.map(s => [s[0], s]));
+    _aircraft = _aircraft.map(old => freshMap.get(old[0]) ?? old);
+    const existingIds = new Set(_aircraft.map(s => s[0]));
+    for (const s of fresh) {
+      if (!existingIds.has(s[0])) _aircraft.push(s);
+    }
   } catch {
     // Silently fail — keep old data
   }
@@ -205,6 +211,13 @@ export function disableAircraft() {
   _visible = false;
   if (_meshHit) _meshHit.count = 0; // hide by zeroing count, keep mesh visible for cleanup
   if (_meshVisual) _meshVisual.visible = false;
+}
+
+/** Re-fetch aircraft positions immediately; additive merge by ICAO24 transponder ID. */
+export async function refreshAircraft() {
+  if (!_visible) return;
+  await _fetchAircraft();
+  _updatePositions();
 }
 
 let _lastVisualUpdate = 0;

@@ -3,7 +3,7 @@ import * as THREE from "three";
 
 // State & constants
 import { weatherState, interactionState, dom } from "./state.js";
-import { CLICK_DISTANCE_THRESHOLD, REFRESH_INTERVAL_MS } from "./constants.js";
+import { CLICK_DISTANCE_THRESHOLD, REFRESH_INTERVAL_MS, GLOBE_RADIUS } from "./constants.js";
 import { buildSamplePoints, buildSummaryPoints, vector3ToLatLon, formatLocationName } from "./utils.js";
 import { PROVIDERS } from "./providers.js";
 import { t, renderAllI18n } from "./i18n.js";
@@ -22,7 +22,7 @@ import { loadSatelliteCloudTexture } from "./globe/satelliteCloudLayer.js";
 import { buildPrecipitationCanvas } from "./globe/precipitationLayer.js";
 import { fetchAndApplyRainViewer, startRainViewerRefresh, stopRainViewerRefresh } from "./globe/rainViewer.js";
 import { buildWindField, updateWindParticles, initWindParticles, windParticles, isWindFieldEmpty, setWindTrailsVisible, getAvailableLevels } from "./globe/windParticles.js";
-import { lightningMesh, buildLightningField, updateLightning, disableLightning } from "./globe/lightningLayer.js";
+import { lightningMesh, buildLightningField, updateLightning, disableLightning, refreshLightning } from "./globe/lightningLayer.js";
 import { timeZoneMesh, buildTimeZoneCanvas, updateTimeZoneLayer, highlightZoneAtUV, clearTimeZoneHighlight } from "./globe/timeZoneLayer.js";
 import { initEarthInterior, enableEarthInterior, disableEarthInterior, updateEarthInterior, toggleLayerVisibility, hasActiveFullSphereLayers } from "./globe/earthInterior.js";
 import { enableEmField, disableEmField } from "./globe/emFieldLayer.js";
@@ -31,8 +31,8 @@ import { loadEarthTextures, updateControlsForZoom } from "./globe/textures.js";
 import { updateOSMTileLayer, addDataZoom, resetDataZoom, getDataZoom, getOSMZoom } from "./globe/osmTileLayer.js";
 import { initMoon, updateMoon } from "./globe/moonLayer.js";
 import { initSkyBackground, updateSkyRotation, setSkyDimming, updateSkyDimming, isSkyDimming } from "./globe/skyBackground.js";
-import { enableSatellites, disableSatellites, updateSatellites, getSatelliteCount, getSatelliteMesh, getSatelliteData, showSatelliteOrbit, setHoveredSatellite, disposeOrbitLine } from "./globe/satelliteLayer.js";
-import { enableAircraft, disableAircraft, updateAircraft, getAircraftCount, getAircraftMesh, getAircraftData, getAircraftProjectedRoute } from "./globe/aircraftLayer.js";
+import { enableSatellites, disableSatellites, updateSatellites, getSatelliteCount, getSatelliteMesh, getSatelliteData, showSatelliteOrbit, setHoveredSatellite, disposeOrbitLine, refreshSatellites } from "./globe/satelliteLayer.js";
+import { enableAircraft, disableAircraft, updateAircraft, getAircraftCount, getAircraftMesh, getAircraftData, getAircraftProjectedRoute, refreshAircraft } from "./globe/aircraftLayer.js";
 import { enableShips, disableShips, updateShips, getShipCount, getShipMesh, getShipData, showShipRoute, disposeShipRoute } from "./globe/shipLayer.js";
 import { enableTraffic, disableTraffic, updateTraffic, getTrafficVehicleCount } from "./globe/trafficLayer.js";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
@@ -40,6 +40,21 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { enableEconomy, disableEconomy, setEconomyMetric, getEconomyMeshes, getEconomyCountry, getEconomyCountryPos, ECONOMY_METRICS } from "./globe/economyLayer.js";
 import { enableAnthropology, disableAnthropology, setAnthroMetric, getAnthroMeshes, getAnthroCountry, getAnthroCountryPos, ANTHRO_METRICS } from "./globe/anthropologyLayer.js";
+import { enableTectonic, disableTectonic, TECTONIC_TYPES, setTectonicFilter, getTectonicFilter, updateTectonicResolution } from "./globe/tectonicLayer.js";
+import { enableVolcanoes, disableVolcanoes, getVolcanoMesh, getVolcanoData, VOLCANO_STATUS_COLORS, setVolcanoStatusFilter, getVolcanoStatusFilter } from "./globe/volcanoLayer.js";
+import { enableMinerals, disableMinerals, getMineralMesh, getMineralData, toggleMineralFilter, getMineralFilter, MINERAL_CATEGORIES } from "./globe/mineralsLayer.js";
+import { enableReligion, disableReligion, getReligionMeshes, getReligionCountry, setReligionMode, getReligionMode, RELIGION_META } from "./globe/religionLayer.js";
+import { enableEnergy, disableEnergy, getEnergyMeshes, getEnergyCountry, setEnergyMode, getEnergyMode, ENERGY_SOURCES } from "./globe/energyLayer.js";
+import { enableAurora, disableAurora, updateAurora, refreshAurora } from "./globe/auroraLayer.js";
+import { enableDeforestation, disableDeforestation, setDeforestationMode, getDeforestationMeshes, getDeforestationCountry, DEFORESTATION_CAUSES, DEFORESTATION_TRENDS } from "./globe/deforestationLayer.js";
+import { enableDesertification, disableDesertification, getDesertificationMeshes, getDesertificationCountry, DESERTIFICATION_RISK_META } from "./globe/desertificationLayer.js";
+import { enableIce, disableIce } from "./globe/iceLayer.js";
+import { enableWarming, disableWarming, setWarmingYear, getWarmingMeshes, getWarmingCountry, WARMING_YEARS } from "./globe/warmingLayer.js";
+import { enableCctv, disableCctv, updateCctv, getCctvMesh, getCctvData, getCctvPreviewUrl, refreshCctv } from "./globe/cctvLayer.js";
+import { enableNato, disableNato, getNatoMesh, getNatoBaseData, setNatoFilter, getNatoFilter, NATO_NATIONS } from "./globe/natoLayer.js";
+import { enableSeas, disableSeas } from "./globe/seasLayer.js";
+import { enableFishing, disableFishing, getFishingZoneAt, FISHING_ZONES } from "./globe/fishingLayer.js";
+import { enableOilGas, disableOilGas, getOilGasMesh, getDepositData, setGlobeTransparency, setOilGasFilter, OIL_GAS_DEPOSITS } from "./globe/oilGasLayer.js";
 import { createFetchLimiter } from "./utils/fetchLimiter.js";
 
 // UI — mode bar
@@ -89,6 +104,18 @@ import {
   setGetStoredApiKey,
   setUpdateMarkerVisibilityCallback
 } from "./ui/index.js";
+
+// ── Camera navigation controller ──
+const CAM_ORBIT_SPEED   = 1.2;  // radians / sec
+const CAM_ROTATE_SPEED  = 0.8;  // radians / sec — earth axis
+const CAM_ZOOM_SPEED    = 3.0;  // distance units / sec
+const _activeInputs     = new Set(); // currently held actions
+const _CAM_KEY_MAP = {
+  w: "orbit-up", s: "orbit-down", a: "orbit-left", d: "orbit-right",
+  q: "rotate-left", e: "rotate-right",
+  ArrowUp: "zoom-in", ArrowDown: "zoom-out",
+};
+const _CAM_SPHERICAL = new THREE.Spherical();
 
 // IndexedDB cache
 import { initCacheDB, saveWeatherDB, clearExpired } from "./weather/cacheDB.js";
@@ -216,6 +243,10 @@ const EARTH_TILT_RAD = 23.44 * Math.PI / 180;
 
 // Target quaternion for smooth tilt animation — written by _computeTiltQuat()
 const _targetQuat = new THREE.Quaternion();
+// User-applied rotation via Q/E keys — composed ON TOP of _targetQuat
+const _userRotQuat = new THREE.Quaternion();
+// Combined target = _targetQuat * _userRotQuat
+const _combinedQuat = new THREE.Quaternion();
 
 /**
  * Compute and store in _targetQuat the target orientation for the globe given tiltMode.
@@ -302,22 +333,196 @@ function handleToggleEarthInterior() {
 
 // Must be declared BEFORE animate() is called to avoid temporal dead zone error
 let _lastFrameTime = performance.now();
+let _compassResetting = false;
+let _compassResetTarget = null;
+const _compassCanvas = document.getElementById("compass-canvas");
+const _compassCtx = _compassCanvas?.getContext("2d");
+const _compassCardinals = [
+  { label: "N", axis: new THREE.Vector3(0, 1, 0), color: "#ff4444", size: 16 },
+  { label: "S", axis: new THREE.Vector3(0, -1, 0), color: "rgba(140,180,255,0.6)", size: 12 },
+  { label: "E", axis: new THREE.Vector3(1, 0, 0), color: "rgba(160,200,255,0.8)", size: 13 },
+  { label: "W", axis: new THREE.Vector3(-1, 0, 0), color: "rgba(160,200,255,0.8)", size: 13 },
+];
+function _finishCompassReset() {
+  // Only fix camera.up — do NOT move camera.position
+  camera.up.set(0, 1, 0);
+  camera.lookAt(controls.target);
+  _compassResetting = false;
+  _compassResetTarget = null;
+  // Re-enable OrbitControls and force it to sync with current camera state
+  controls.enabled = true;
+  const prevDamping = controls.enableDamping;
+  controls.enableDamping = false;
+  controls.update();
+  controls.enableDamping = prevDamping;
+}
+
+function _cancelCompassReset() {
+  if (_compassResetting) {
+    _compassResetting = false;
+    _compassResetTarget = null;
+    controls.enabled = true;
+  }
+}
+
 const _sbZoom = document.getElementById("sb-zoom");
-const _sbWeather = document.getElementById("sb-weather");
-const _sbWind = document.getElementById("sb-wind");
-const _sbSatellites = document.getElementById("sb-satellites");
-const _sbAircraft = document.getElementById("sb-aircraft");
-const _sbLightning = document.getElementById("sb-lightning");
-const _sbClouds = document.getElementById("sb-clouds");
-const _sbOsm = document.getElementById("sb-osm");
-const _sbShips = document.getElementById("sb-ships");
-const _sbTraffic = document.getElementById("sb-traffic");
+const _sbGroups = document.getElementById("sb-groups");
 let _sbUpdateCounter = 0;
+
+function _updateStatusBarGroups(camDist) {
+  const groups = [];
+
+  // ── METEO ──
+  {
+    const items = [];
+    const nPts = weatherState.points?.length ?? 0;
+    if (nPts > 0 && weatherState.showMarkers) items.push(`${nPts} punti`);
+    if (weatherState.showHeatmap) items.push("Heatmap");
+    if (weatherState.showWind) items.push(`Vento ${weatherState.windAltitudeLevel}`);
+    if (weatherState.showPrecipitation) items.push(weatherState.useRainViewer ? "Precip. RainViewer" : "Precip.");
+    if (weatherState.showLightning) items.push("Fulmini");
+    if (weatherState.cloudMode !== "off") items.push(`Nuvole ${weatherState.cloudMode === "aesthetic" ? "estetiche" : "satellite"}`);
+    if (items.length) groups.push({ label: "METEO", items: items.join(" · ") });
+  }
+
+  // ── ASTRONOMIA ──
+  {
+    const items = [];
+    if (weatherState.showTerminator) items.push("Terminatore");
+    if (weatherState.tiltMode === "simple") items.push("Asse 23.4°");
+    else if (weatherState.tiltMode === "seasonal") items.push("Asse stagionale");
+    if (weatherState.showSatellites) {
+      const cnt = getSatelliteCount();
+      const sf = weatherState.satelliteFilters;
+      const active = ["leo","meo","geo","heo"].filter(k => sf[k]);
+      const filterStr = active.length < 4 ? ` [${active.join(",")}]` : "";
+      items.push(`Sat ${cnt}${filterStr}`);
+    }
+    if (weatherState.showAurora) items.push("Aurora");
+    if (items.length) groups.push({ label: "ASTRO", items: items.join(" · ") });
+  }
+
+  // ── TRASPORTI ──
+  {
+    const items = [];
+    if (weatherState.showAircraft) {
+      const cnt = getAircraftCount();
+      const af = weatherState.aircraftFilters;
+      const active = ["low","mid","high"].filter(k => af[k]);
+      const filterStr = active.length < 3 ? ` [${active.join(",")}]` : "";
+      items.push(`Aerei ${cnt}${filterStr}`);
+    }
+    if (weatherState.showShips) items.push(`Navi ${getShipCount()}`);
+    if (weatherState.showTraffic) items.push(`Traffico ${getTrafficVehicleCount()}`);
+    if (items.length) groups.push({ label: "TRASP", items: items.join(" · ") });
+  }
+
+  // ── ECONOMIA ──
+  if (weatherState.showEconomy) {
+    const chip = document.querySelector("#economy-filters .filter-chip.active");
+    const metric = chip?.textContent?.trim() ?? "";
+    groups.push({ label: "ECON", items: metric || "Dati economici" });
+  }
+
+  // ── ANTROPOLOGIA ──
+  {
+    const items = [];
+    if (weatherState.showAnthropology) {
+      const chip = document.querySelector("#anthropology-filters .filter-chip.active");
+      items.push(chip?.textContent?.trim() ?? "Demografia");
+    }
+    if (weatherState.showReligion) {
+      const mode = getReligionMode();
+      items.push(`Religioni: ${mode}`);
+    }
+    if (items.length) groups.push({ label: "ANTRO", items: items.join(" · ") });
+  }
+
+  // ── ENERGIA ──
+  if (weatherState.showEnergy) {
+    const mode = getEnergyMode();
+    groups.push({ label: "ENERG", items: mode === "dominant" ? "Dominante" : mode });
+  }
+
+  // ── PERICOLI ──
+  {
+    const items = [];
+    if (weatherState.showDeforestation) {
+      const chip = document.querySelector("#deforestation-filters .filter-chip.active");
+      items.push(`Deforest.: ${chip?.textContent?.trim() ?? ""}`);
+    }
+    if (weatherState.showDesertification) items.push("Desertificazione");
+    if (weatherState.showIce) items.push("Ghiacci");
+    if (weatherState.showWarming) {
+      const lbl = document.getElementById("warming-year-label")?.textContent ?? "";
+      items.push(`Riscald. ${lbl}`);
+    }
+    if (items.length) groups.push({ label: "PERIC", items: items.join(" · ") });
+  }
+
+  // ── GEO ──
+  {
+    const items = [];
+    if (weatherState.showEarthInterior) items.push("Strati interni");
+    if (weatherState.showEmField) items.push("Campo EM");
+    if (weatherState.showWaterBodies) items.push("Laghi/fiumi");
+    if (weatherState.showTectonic) {
+      const off = Object.entries(TECTONIC_TYPES).filter(([k]) => !getTectonicFilter(k));
+      items.push(off.length ? `Tettoniche [-${off.length}]` : "Tettoniche");
+    }
+    if (weatherState.showVolcanoes) items.push("Vulcani");
+    if (weatherState.showMinerals) items.push("Minerali");
+    if (weatherState.showOilGas) items.push("Petrolio/Gas");
+    if (items.length) groups.push({ label: "GEO", items: items.join(" · ") });
+  }
+
+  // ── GEOPOLITICA ──
+  if (weatherState.showNato) {
+    groups.push({ label: "GEOPOL", items: "Basi NATO" });
+  }
+
+  // ── MARE ──
+  {
+    const items = [];
+    if (weatherState.showSeas) items.push("Mari/Oceani");
+    if (weatherState.showFishing) items.push("Zone pesca FAO");
+    if (items.length) groups.push({ label: "MARE", items: items.join(" · ") });
+  }
+
+  // ── SITUAZIONI ──
+  {
+    const items = [];
+    if (weatherState.showTimeZones) items.push("Fusi orari");
+    if (weatherState.showCctv) items.push("Webcam");
+    if (items.length) groups.push({ label: "LIVE", items: items.join(" · ") });
+  }
+
+  // ── SISTEMA ──
+  {
+    const items = [];
+    if (camDist < 6.0 || getDataZoom() > 0) {
+      const dz = getDataZoom();
+      items.push(dz > 0 ? `OSM z${getOSMZoom()}+${dz}` : `OSM z${getOSMZoom()}`);
+    }
+    if (items.length) groups.push({ label: "SYS", items: items.join(" · ") });
+  }
+
+  // Build HTML
+  if (groups.length === 0) {
+    _sbGroups.innerHTML = "";
+    return;
+  }
+  _sbGroups.innerHTML = groups.map(g =>
+    `<span class="sb-group"><span class="sb-group-label">${g.label}</span> <span class="sb-group-items">${g.items}</span></span>`
+  ).join("");
+}
 
 // ── Aircraft route line + hexdb.io data ──
 let _aircraftRouteLine = null;
+let _aircraftAirportMarkers = []; // sprites + dots for departure/arrival airports
 const _hexdbLimiter = createFetchLimiter(2);
 let _hexdbFetchId = 0; // guard against stale fetches
+let _adsbdbFetchId = 0; // guard against stale adsbdb.com fetches
 
 // ── Entity card (floating info for aircraft/satellite selection) ──
 const _entityCard = document.getElementById("entity-card");
@@ -373,31 +578,127 @@ function _disposeAircraftRoute() {
     _aircraftRouteLine.material?.dispose();
     _aircraftRouteLine = null;
   }
+  for (const m of _aircraftAirportMarkers) {
+    scene.remove(m);
+    m.geometry?.dispose();
+    if (m.material) {
+      m.material.map?.dispose();
+      m.material.dispose();
+    }
+  }
+  _aircraftAirportMarkers = [];
 }
 
-function _showAircraftRoute(instanceIndex) {
-  _disposeAircraftRoute();
-  const points = getAircraftProjectedRoute(instanceIndex);
-  if (!points || points.length < 2) return;
+/** Convert lat/lon/altM to world-space Vector3 (applies globeGroup transform). */
+function _routeLatLonToWorld(lat, lon, altM = 0) {
+  const altKm = altM / 1000;
+  const r = GLOBE_RADIUS * (1 + altKm / 6371);
+  const phi = THREE.MathUtils.degToRad(90 - lat);
+  const theta = THREE.MathUtils.degToRad(lon + 180);
+  const sinPhi = Math.sin(phi);
+  return new THREE.Vector3(
+    -(r * sinPhi * Math.cos(theta)),
+    r * Math.cos(phi),
+    r * sinPhi * Math.sin(theta)
+  ).applyMatrix4(globeGroup.matrixWorld);
+}
 
+/** Generate great-circle arc from (lat1,lon1) to (lat2,lon2) at altM, numPts steps. */
+function _greatCircleArc(lat1, lon1, lat2, lon2, altM, numPts = 80) {
+  const toR = THREE.MathUtils.degToRad;
+  const toDeg = THREE.MathUtils.radToDeg;
+  const la1 = toR(lat1), lo1 = toR(lon1);
+  const la2 = toR(lat2), lo2 = toR(lon2);
+  const d = Math.acos(Math.max(-1, Math.min(1,
+    Math.sin(la1) * Math.sin(la2) + Math.cos(la1) * Math.cos(la2) * Math.cos(lo2 - lo1)
+  )));
+  const points = [];
+  for (let i = 0; i <= numPts; i++) {
+    const f = i / numPts;
+    if (d < 1e-6) {
+      points.push(_routeLatLonToWorld(lat1, lon1, altM));
+      continue;
+    }
+    const sinD = Math.sin(d);
+    const A = Math.sin((1 - f) * d) / sinD;
+    const B = Math.sin(f * d) / sinD;
+    const x = A * Math.cos(la1) * Math.cos(lo1) + B * Math.cos(la2) * Math.cos(lo2);
+    const y = A * Math.cos(la1) * Math.sin(lo1) + B * Math.cos(la2) * Math.sin(lo2);
+    const z = A * Math.sin(la1) + B * Math.sin(la2);
+    const lat = toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)));
+    const lon = toDeg(Math.atan2(y, x));
+    points.push(_routeLatLonToWorld(lat, lon, altM));
+  }
+  return points;
+}
+
+/** Create a small dot + label sprite at an airport position. */
+function _addAirportMarker(lat, lon, label) {
+  // Dot at surface
+  const dotGeo = new THREE.SphereGeometry(0.022, 8, 8);
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, depthWrite: false });
+  const dot = new THREE.Mesh(dotGeo, dotMat);
+  dot.position.copy(_routeLatLonToWorld(lat, lon, 8000));
+  scene.add(dot);
+  _aircraftAirportMarkers.push(dot);
+
+  // Label sprite
+  const canvas = document.createElement("canvas");
+  canvas.width = 320;
+  canvas.height = 56;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgba(0,0,0,0.65)";
+  ctx.beginPath();
+  ctx.roundRect(0, 0, 320, 56, 8);
+  ctx.fill();
+  ctx.fillStyle = "#ffcc00";
+  ctx.font = "bold 22px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(label, 160, 36);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, depthWrite: false, transparent: true });
+  const sprite = new THREE.Sprite(mat);
+  sprite.position.copy(_routeLatLonToWorld(lat, lon, 120000));
+  sprite.scale.set(0.65, 0.12, 1);
+  scene.add(sprite);
+  _aircraftAirportMarkers.push(sprite);
+}
+
+/** Draw a route line from the given world-space points array. Caller must have called _disposeAircraftRoute first. */
+function _drawRouteLine(points, color = 0x00ffcc, opacity = 0.85) {
+  if (!points || points.length < 2) return;
   const positions = [];
   for (const p of points) positions.push(p.x, p.y, p.z);
-
   const geo = new LineGeometry();
   geo.setPositions(positions);
-
   const mat = new LineMaterial({
-    color: 0x00ffcc,
+    color,
     linewidth: 3,
     transparent: true,
-    opacity: 0.85,
+    opacity,
     depthWrite: false,
     resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
   });
-
   _aircraftRouteLine = new Line2(geo, mat);
   _aircraftRouteLine.computeLineDistances();
   scene.add(_aircraftRouteLine);
+}
+
+function _showAircraftRoute(instanceIndex, realRoute = null) {
+  _disposeAircraftRoute();
+
+  if (realRoute) {
+    const { depLat, depLon, depName, arrLat, arrLon, arrName, altM } = realRoute;
+    const points = _greatCircleArc(depLat, depLon, arrLat, arrLon, altM ?? 10000);
+    _drawRouteLine(points, 0x00ffcc, 0.85);
+    _addAirportMarker(depLat, depLon, depName);
+    _addAirportMarker(arrLat, arrLon, arrName);
+    return;
+  }
+
+  // Fallback: projected great-circle in current heading direction
+  const points = getAircraftProjectedRoute(instanceIndex);
+  _drawRouteLine(points, 0x00ffcc, 0.6);
 }
 
 function _showEntityCard(screenX, screenY) {
@@ -440,12 +741,15 @@ function _showAircraftCard(data, screenX, screenY) {
   ].join("");
   _showEntityCard(screenX, screenY);
 
-  // Show projected route line
+  // Show projected route line initially (updated to real route once adsbdb responds)
   _showAircraftRoute(_selectedEntityIndex);
 
-  // Async fetch aircraft type + photo from hexdb.io
   const fetchId = ++_hexdbFetchId;
+  const adsbId = ++_adsbdbFetchId;
   const icao = data.icao24;
+  const callsign = data.callsign?.trim();
+
+  // Async fetch aircraft type + photo from hexdb.io
   (async () => {
     try {
       const [typeResp, imgResp] = await Promise.all([
@@ -464,6 +768,42 @@ function _showAircraftCard(data, screenX, screenY) {
       }
     } catch { /* hexdb.io unavailable — graceful degradation */ }
   })();
+
+  // Async fetch real route from adsbdb.com
+  if (callsign) {
+    (async () => {
+      try {
+        const resp = await fetch(`https://api.adsbdb.com/v0/callsign/${encodeURIComponent(callsign)}`);
+        if (adsbId !== _adsbdbFetchId) return; // stale
+        if (!resp.ok) return;
+        const json = await resp.json();
+        if (adsbId !== _adsbdbFetchId) return;
+        const route = json?.response?.flightroute;
+        if (!route) return;
+        const dep = route.origin;
+        const arr = route.destination;
+        if (!dep?.latitude || !dep?.longitude || !arr?.latitude || !arr?.longitude) return;
+        const depLat = parseFloat(dep.latitude);
+        const depLon = parseFloat(dep.longitude);
+        const arrLat = parseFloat(arr.latitude);
+        const arrLon = parseFloat(arr.longitude);
+        if (isNaN(depLat) || isNaN(depLon) || isNaN(arrLat) || isNaN(arrLon)) return;
+        const depName = `${dep.iata_code ?? dep.icao_code ?? ""} ${dep.municipality ?? ""}`.trim();
+        const arrName = `${arr.iata_code ?? arr.icao_code ?? ""} ${arr.municipality ?? ""}`.trim();
+        // Update card with airport info
+        _entityCardBody.innerHTML =
+          _cardRow("FROM", depName || dep.name) +
+          _cardRow("TO", arrName || arr.name) +
+          _entityCardBody.innerHTML;
+        // Replace projected route with real departure→arrival great-circle
+        _showAircraftRoute(_selectedEntityIndex, {
+          depLat, depLon, depName: depName || dep.name,
+          arrLat, arrLon, arrName: arrName || arr.name,
+          altM: data.baroAltitude ?? 10000,
+        });
+      } catch { /* adsbdb.com unavailable — keep projected route */ }
+    })();
+  }
 }
 
 function _showSatelliteCard(data, screenX, screenY) {
@@ -534,6 +874,104 @@ function _showAnthropologyCard(data, screenX, screenY) {
   _showEntityCard(screenX, screenY);
 }
 
+function _showVolcanoCard(data, screenX, screenY) {
+  _selectedEntityType = "volcano";
+  const statusColor = VOLCANO_STATUS_COLORS[data.status] ?? 0xffffff;
+  const hexColor    = "#" + statusColor.toString(16).padStart(6, "0");
+  _entityCardTitle.textContent  = `🌋 ${data.name}`;
+  _entityCardSubtitle.innerHTML = `${data.country} &nbsp;·&nbsp; <span style="color:${hexColor}">● ${data.status}</span>`;
+  const veiStr = data.vei > 0 ? `VEI ${data.vei}` : "—";
+  const elStr  = data.elevation > 0 ? `${data.elevation.toLocaleString()} m` : `${Math.abs(data.elevation)} m (sottomarino)`;
+  _entityCardBody.innerHTML = [
+    _cardRow("Tipo",         data.type),
+    _cardRow("Quota",        elStr),
+    _cardRow("Ultima erupt.", data.lastErupt),
+    _cardRow("VEI max",      veiStr),
+    _cardRow("Pos.",         `${data.lat.toFixed(2)}, ${data.lon.toFixed(2)}`),
+  ].join("") + `<p style="margin:8px 0 0;font-size:11px;opacity:0.85;grid-column:1/-1">${data.description}</p>`;
+  _showEntityCard(screenX, screenY);
+}
+
+function _showMineralCard(data, screenX, screenY) {
+  _selectedEntityType = "mineral";
+  _entityCardTitle.textContent    = data.name;
+  _entityCardSubtitle.textContent = `${data.category} · ${data.country}`;
+  const sizeLabel = { major:"Principale", significant:"Significativo", minor:"Minore" }[data.size] ?? data.size;
+  _entityCardBody.innerHTML = [
+    _cardRow("Minerale / Elemento", data.label),
+    _cardRow("Dimensione",           sizeLabel),
+    _cardRow("Posizione",            `${data.lat.toFixed(2)}, ${data.lon.toFixed(2)}`),
+  ].join("") + `<p style="margin:8px 0 0;font-size:11px;opacity:0.85;grid-column:1/-1">${data.notes}</p>`;
+  _showEntityCard(screenX, screenY);
+}
+
+function _showEnergyCard(data, screenX, screenY) {
+  _selectedEntityType = "energy";
+  _entityCardTitle.textContent    = `${data.flag} ${data.name}`;
+  const twhStr = data.twh != null ? `${data.twh.toLocaleString("it-IT")} TWh/anno` : "Nessun dato";
+  _entityCardSubtitle.textContent = `${data.code} · ${data.domLabel} · ${twhStr}`;
+  const sorted = Object.entries(data.breakdown)
+    .sort(([, a], [, b]) => b - a)
+    .filter(([, v]) => v > 0);
+  _entityCardBody.innerHTML = sorted.map(([key, pct]) => {
+    const src = ENERGY_SOURCES[key];
+    const col = src?.color ?? "#888";
+    return `<span class="label" style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:${col};display:inline-block"></span>${src?.label ?? key}</span><span class="value">${pct.toFixed(1)}%</span>`;
+  }).join("");
+  _showEntityCard(screenX, screenY);
+}
+
+function _showDeforestationCard(data, screenX, screenY) {
+  _selectedEntityType = "deforestation";
+  _entityCardTitle.textContent    = `${data.flag} ${data.name}`;
+  const loss = data.annualLossKha > 0 ? `${data.annualLossKha.toLocaleString("it-IT")} kha/anno` : "Dati non disp.";
+  _entityCardSubtitle.textContent = `${data.code} · ${data.causeLabel} · ${loss}`;
+  _entityCardBody.innerHTML = [
+    `<span class="label">Copertura forestale</span><span class="value">${data.forestPct.toFixed(1)}%</span>`,
+    `<span class="label">Copertura storica</span><span class="value">${data.peakPct.toFixed(1)}%</span>`,
+    `<span class="label">Perdita relativa</span><span class="value">${((data.peakPct - data.forestPct) / Math.max(data.peakPct, 1) * 100).toFixed(1)}%</span>`,
+    `<span class="label">Tendenza</span><span class="value" style="color:${data.trendColor}">${data.trendLabel}</span>`,
+  ].join("");
+  _showEntityCard(screenX, screenY);
+}
+
+function _showDesertificationCard(data, screenX, screenY) {
+  _selectedEntityType = "desertification";
+  _entityCardTitle.textContent    = `${data.flag} ${data.name}`;
+  _entityCardSubtitle.textContent = `${data.code} · ${data.riskLabel}`;
+  _entityCardBody.innerHTML = [
+    `<span class="label">Livello rischio</span><span class="value" style="color:${data.riskColor}">${data.riskLevel}/4</span>`,
+    `<span class="label">Superficie arida</span><span class="value">${data.drylandPct.toFixed(0)}%</span>`,
+    `<span class="label">Area degradata</span><span class="value">${data.degradedPct.toFixed(0)}%</span>`,
+  ].join("");
+  _showEntityCard(screenX, screenY);
+}
+
+function _showWarmingCard(data, screenX, screenY) {
+  _selectedEntityType = "warming";
+  _entityCardTitle.textContent    = `${data.flag} ${data.name}`;
+  const sign = data.anomaly >= 0 ? "+" : "";
+  _entityCardSubtitle.textContent = `${data.code} · ${data.year} · Anomalia ${sign}${data.anomaly.toFixed(2)}°C`;
+  _entityCardBody.innerHTML = `<span class="label">vs. baseline 1950–80</span><span class="value">${sign}${data.anomaly.toFixed(2)} °C</span>`;
+  _showEntityCard(screenX, screenY);
+}
+
+function _showReligionCard(data, screenX, screenY) {
+  _selectedEntityType = "religion";
+  _entityCardTitle.textContent    = `${data.flag} ${data.name}`;
+  _entityCardSubtitle.textContent = `${data.code} · Religione prevalente: ${data.domLabel}`;
+  // Sort breakdown by percentage descending
+  const sorted = Object.entries(data.breakdown)
+    .sort(([, a], [, b]) => b - a)
+    .filter(([, v]) => v > 0);
+  _entityCardBody.innerHTML = sorted.map(([key, pct]) => {
+    const meta = RELIGION_META[key];
+    const hexCol = "#" + ((meta?.color ?? 0xaabbcc).toString(16).padStart(6, "0"));
+    return `<span class="label" style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:${hexCol};display:inline-block"></span>${meta?.label ?? key}</span><span class="value">${pct.toFixed(1)}%</span>`;
+  }).join("");
+  _showEntityCard(screenX, screenY);
+}
+
 animate();
 
 // Event listeners
@@ -562,6 +1000,74 @@ renderer.domElement.addEventListener("wheel", (e) => {
   }
   // else: scroll out with no data zoom → let OrbitControls move camera away
 }, { capture: true, passive: false });
+// ── Camera controller: keyboard ──
+window.addEventListener("keydown", (e) => {
+  // Skip when typing in form fields
+  const tag = document.activeElement?.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+  const action = _CAM_KEY_MAP[e.key];
+  if (action) {
+    e.preventDefault();
+    _cancelCompassReset();
+    _activeInputs.add(action);
+  }
+});
+window.addEventListener("keyup", (e) => {
+  const action = _CAM_KEY_MAP[e.key];
+  if (action) _activeInputs.delete(action);
+});
+// Clear all keys on blur (tab switch, window focus loss)
+window.addEventListener("blur", () => _activeInputs.clear());
+
+// ── Camera controller: on-screen buttons ──
+for (const btn of document.querySelectorAll("#camera-controls .cam-btn")) {
+  const action = btn.dataset.action;
+  if (!action) continue;
+  const start = () => { _activeInputs.add(action); btn.classList.add("pressed"); };
+  const stop  = () => { _activeInputs.delete(action); btn.classList.remove("pressed"); };
+  btn.addEventListener("pointerdown", (e) => { e.preventDefault(); start(); });
+  btn.addEventListener("pointerup", stop);
+  btn.addEventListener("pointerleave", stop);
+  btn.addEventListener("pointercancel", stop);
+  // Prevent context menu on long press (mobile)
+  btn.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+document.getElementById("compass")?.addEventListener("click", () => {
+  // Reset earth rotation and orient north upward — do NOT move camera position
+  _userRotQuat.identity();
+  _compassResetting = true;
+  _compassResetTarget = { up: new THREE.Vector3(0, 1, 0) };
+});
+
+// ── Screenshot mode ──
+document.getElementById("screenshot-enter")?.addEventListener("click", () => {
+  document.body.classList.add("screenshot-mode");
+});
+
+document.getElementById("screenshot-exit")?.addEventListener("click", () => {
+  document.body.classList.remove("screenshot-mode");
+});
+
+document.getElementById("screenshot-capture")?.addEventListener("click", () => {
+  // Hide toolbar briefly for clean capture
+  const toolbar = document.getElementById("screenshot-toolbar");
+  toolbar.style.visibility = "hidden";
+  requestAnimationFrame(() => {
+    // Must render immediately before toDataURL (preserveDrawingBuffer is false)
+    renderer.render(scene, camera);
+    const dataUrl = renderer.domElement.toDataURL("image/png");
+    toolbar.style.visibility = "";
+    // Download
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `TerraCast_${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+});
+
 dom.locateMeButton.addEventListener("click", () => requestCurrentLocationSelection(true));
 dom.searchForm.addEventListener("submit", handleSearchSubmit);
 
@@ -649,10 +1155,12 @@ document.querySelectorAll("#cloud-switch .cloud-option").forEach(btn => {
       // Load actual satellite cloud imagery from NASA GIBS
       setStatus(t("status.satelliteLoading"));
       loadSatelliteCloudTexture()
-        .then(({ date, layers, sources }) => {
-          const nrt = layers?.includes("_NRT") ? " · NRT" : "";
-          const extra = sources > 1 ? ` · ${sources} satelliti` : "";
-          setStatus(t("status.satelliteLoaded", { date, nrt: nrt + extra }));
+        .then(({ date, sources, providers, syncWindowMinutes }) => {
+          const detail = [];
+          if (sources > 1) detail.push(`${sources} sorgenti`);
+          if (providers > 1) detail.push(`${providers} provider`);
+          if (syncWindowMinutes) detail.push(`sync ±${syncWindowMinutes}m`);
+          setStatus(t("status.satelliteLoaded", { date, nrt: detail.length ? ` · ${detail.join(" · ")}` : "" }));
         })
         .catch(() => {
           // Fallback: IDW interpolation from weather data
@@ -935,35 +1443,577 @@ document.getElementById("anthropology-filters")?.addEventListener("click", (e) =
   document.querySelectorAll("#anthropology-filters .filter-chip").forEach(b => b.classList.toggle("active", b.dataset.anthroMetric === metric));
 });
 
-// Refresh buttons — force re-download data for specific features
-document.getElementById("refresh-heatmap")?.addEventListener("click", () => {
-  if (weatherState.showHeatmap) {
-    buildHeatmapCanvas(weatherState.points);
-    showSnackbar(t("status.feedUpdated", { count: "", provider: "Heatmap" }), "info");
-  }
-});
-
-document.getElementById("refresh-wind")?.addEventListener("click", async () => {
-  if (weatherState.showWind) {
-    setStatus(t("status.updating"));
-    await refreshGlobalWeather(true, samplePoints, summaryPoints);
-    buildWindField(weatherState.points, weatherState.windAltitudeLevel);
-  }
-});
-
-document.getElementById("refresh-precipitation")?.addEventListener("click", async () => {
-  if (weatherState.showPrecipitation) {
-    setStatus(t("status.radarLoading"));
-    const result = await fetchAndApplyRainViewer();
-    if (result) {
-      weatherState.useRainViewer = true;
-      setStatus(t("status.radarLoaded", { age: result.ageMinutes }));
-    } else {
-      weatherState.useRainViewer = false;
-      setStatus(t("status.radarError"));
-      buildPrecipitationCanvas(weatherState.points);
+// ── Tectonic toggle ─────────────────────────────────────────────────────────
+document.getElementById("toggle-tectonic-button")?.addEventListener("click", async () => {
+  weatherState.showTectonic = !weatherState.showTectonic;
+  const btn    = document.getElementById("toggle-tectonic-button");
+  const legend = document.getElementById("tectonic-legend");
+  if (weatherState.showTectonic) {
+    if (btn) btn.textContent = "Caricamento faglie…";
+    showSnackbar("Caricamento faglie tettoniche…");
+    const ok = await enableTectonic();
+    if (!ok) {
+      weatherState.showTectonic = false;
+      showSnackbar("Errore caricamento faglie tettoniche", "error");
+      if (btn) btn.textContent = "Faglie tettoniche";
+      btn?.classList.remove("active");
+      return;
     }
+    if (btn) btn.textContent = "Nascondi faglie";
+    showSnackbar("Faglie tettoniche caricate");
+  } else {
+    disableTectonic();
+    if (btn) btn.textContent = "Faglie tettoniche";
   }
+  btn?.classList.toggle("active", weatherState.showTectonic);
+  if (legend) legend.style.display = weatherState.showTectonic ? "" : "none";
+});
+
+document.getElementById("tectonic-legend")?.addEventListener("click", (e) => {
+  const type = e.target.dataset.tectonicType;
+  if (!type) return;
+  const nowActive = !getTectonicFilter(type);
+  setTectonicFilter(type, nowActive);
+  e.target.classList.toggle("active", nowActive);
+});
+
+// ── Volcanoes toggle ──────────────────────────────────────────────────────
+document.getElementById("toggle-volcanoes-button")?.addEventListener("click", () => {
+  weatherState.showVolcanoes = !weatherState.showVolcanoes;
+  if (weatherState.showVolcanoes) {
+    enableVolcanoes();
+    showSnackbar(`${160} vulcani attivi caricati`);
+  } else {
+    disableVolcanoes();
+  }
+  const btn    = document.getElementById("toggle-volcanoes-button");
+  const legend = document.getElementById("volcano-legend");
+  btn?.classList.toggle("active", weatherState.showVolcanoes);
+  if (btn) btn.textContent = weatherState.showVolcanoes ? "Nascondi vulcani" : "Vulcani attivi";
+  if (legend) legend.style.display = weatherState.showVolcanoes ? "" : "none";
+});
+
+document.getElementById("volcano-legend")?.addEventListener("click", (e) => {
+  const status = e.target.dataset.volcanoStatus;
+  if (!status) return;
+  const nowActive = !getVolcanoStatusFilter(status);
+  setVolcanoStatusFilter(status, nowActive);
+  e.target.classList.toggle("active", nowActive);
+});
+
+// ── Minerals toggle ───────────────────────────────────────────────────────
+document.getElementById("toggle-minerals-button")?.addEventListener("click", () => {
+  weatherState.showMinerals = !weatherState.showMinerals;
+  if (weatherState.showMinerals) {
+    enableMinerals();
+    showSnackbar("Giacimenti minerali caricati");
+  } else {
+    disableMinerals();
+  }
+  const btn     = document.getElementById("toggle-minerals-button");
+  const filters = document.getElementById("minerals-filters");
+  btn?.classList.toggle("active", weatherState.showMinerals);
+  if (btn) btn.textContent = weatherState.showMinerals ? "Nascondi giacimenti" : "Giacimenti minerali";
+  if (filters) filters.style.display = weatherState.showMinerals ? "" : "none";
+});
+
+// Mineral filter chips
+document.getElementById("minerals-filters")?.addEventListener("click", (e) => {
+  const key = e.target.dataset.mineral;
+  if (!key) return;
+  const nowOn = !getMineralFilter(key);
+  toggleMineralFilter(key);
+  e.target.classList.toggle("active", nowOn);
+});
+
+// ── Religion toggle ───────────────────────────────────────────────────────
+document.getElementById("toggle-religion-button")?.addEventListener("click", async () => {
+  weatherState.showReligion = !weatherState.showReligion;
+  const btn     = document.getElementById("toggle-religion-button");
+  const filters = document.getElementById("religion-filters");
+  if (weatherState.showReligion) {
+    if (btn) btn.textContent = "Caricamento religioni…";
+    await enableReligion();
+    if (btn) btn.textContent = "Nascondi religioni";
+    showSnackbar("Mappa religioni caricata");
+  } else {
+    disableReligion();
+    if (btn) btn.textContent = "Religioni del mondo";
+  }
+  btn?.classList.toggle("active", weatherState.showReligion);
+  if (filters) filters.style.display = weatherState.showReligion ? "" : "none";
+});
+
+// Religion mode filter chips
+document.getElementById("religion-filters")?.addEventListener("click", (e) => {
+  const mode = e.target.dataset.religionMode;
+  if (!mode) return;
+  setReligionMode(mode);
+  document.querySelectorAll("#religion-filters .filter-chip").forEach(b =>
+    b.classList.toggle("active", b.dataset.religionMode === mode)
+  );
+});
+
+// ── Energy toggle ─────────────────────────────────────────────────────────
+document.getElementById("toggle-energy-button")?.addEventListener("click", async () => {
+  weatherState.showEnergy = !weatherState.showEnergy;
+  const btn     = document.getElementById("toggle-energy-button");
+  const filters = document.getElementById("energy-filters");
+  if (weatherState.showEnergy) {
+    if (btn) btn.textContent = "Caricamento energia…";
+    await enableEnergy();
+    if (btn) btn.textContent = "Nascondi energia";
+    showSnackbar("Mappa energetica caricata");
+  } else {
+    disableEnergy();
+    if (btn) btn.textContent = "Produzione energetica";
+  }
+  btn?.classList.toggle("active", weatherState.showEnergy);
+  if (filters) filters.style.display = weatherState.showEnergy ? "" : "none";
+});
+
+// Energy mode filter chips
+document.getElementById("energy-filters")?.addEventListener("click", (e) => {
+  const mode = e.target.dataset.energyMode;
+  if (!mode) return;
+  setEnergyMode(mode);
+  document.querySelectorAll("#energy-filters .filter-chip").forEach(b =>
+    b.classList.toggle("active", b.dataset.energyMode === mode)
+  );
+});
+
+// ── Aurora toggle ─────────────────────────────────────────────────────────
+document.getElementById("toggle-aurora-button")?.addEventListener("click", async () => {
+  weatherState.showAurora = !weatherState.showAurora;
+  const btn = document.getElementById("toggle-aurora-button");
+  if (weatherState.showAurora) {
+    if (btn) btn.textContent = "Caricamento aurora…";
+    await enableAurora();
+    if (btn) btn.textContent = "Nascondi aurora";
+    showSnackbar("Aurora caricata (dati NOAA SWPC)");
+  } else {
+    disableAurora();
+    if (btn) btn.textContent = "Aurore boreali / australi";
+  }
+  btn?.classList.toggle("active", weatherState.showAurora);
+});
+
+// ── Deforestation toggle ───────────────────────────────────────────────────
+document.getElementById("toggle-deforestation-button")?.addEventListener("click", async () => {
+  weatherState.showDeforestation = !weatherState.showDeforestation;
+  const btn = document.getElementById("toggle-deforestation-button");
+  const filters = document.getElementById("deforestation-filters");
+  if (weatherState.showDeforestation) {
+    if (btn) btn.textContent = "Caricamento…";
+    await enableDeforestation();
+    if (btn) btn.textContent = "Nascondi deforestazione";
+    showSnackbar("Mappa deforestazione caricata");
+  } else {
+    disableDeforestation();
+    if (btn) btn.textContent = "Deforestazione";
+  }
+  btn?.classList.toggle("active", weatherState.showDeforestation);
+  if (filters) filters.style.display = weatherState.showDeforestation ? "" : "none";
+});
+
+document.getElementById("deforestation-filters")?.addEventListener("click", (e) => {
+  const mode = e.target.dataset.deforestationMode;
+  if (!mode) return;
+  setDeforestationMode(mode);
+  document.querySelectorAll("#deforestation-filters .filter-chip").forEach(b =>
+    b.classList.toggle("active", b.dataset.deforestationMode === mode)
+  );
+});
+
+// ── Desertification toggle ─────────────────────────────────────────────────
+document.getElementById("toggle-desertification-button")?.addEventListener("click", async () => {
+  weatherState.showDesertification = !weatherState.showDesertification;
+  const btn = document.getElementById("toggle-desertification-button");
+  if (weatherState.showDesertification) {
+    if (btn) btn.textContent = "Caricamento…";
+    await enableDesertification();
+    if (btn) btn.textContent = "Nascondi desertificazione";
+    showSnackbar("Mappa desertificazione caricata");
+  } else {
+    disableDesertification();
+    if (btn) btn.textContent = "Desertificazione";
+  }
+  btn?.classList.toggle("active", weatherState.showDesertification);
+});
+
+// ── Ice / glacier toggle ───────────────────────────────────────────────────
+document.getElementById("toggle-ice-button")?.addEventListener("click", () => {
+  weatherState.showIce = !weatherState.showIce;
+  const btn = document.getElementById("toggle-ice-button");
+  if (weatherState.showIce) {
+    enableIce();
+    if (btn) btn.textContent = "Nascondi ghiacci";
+    showSnackbar("Mappa scioglimento ghiacci caricata");
+  } else {
+    disableIce();
+    if (btn) btn.textContent = "Scioglimento ghiacci";
+  }
+  btn?.classList.toggle("active", weatherState.showIce);
+});
+
+// ── Global warming toggle ──────────────────────────────────────────────────
+document.getElementById("toggle-warming-button")?.addEventListener("click", async () => {
+  weatherState.showWarming = !weatherState.showWarming;
+  const btn = document.getElementById("toggle-warming-button");
+  const yearRow = document.getElementById("warming-year-row");
+  if (weatherState.showWarming) {
+    if (btn) btn.textContent = "Caricamento…";
+    await enableWarming();
+    if (btn) btn.textContent = "Nascondi surriscaldamento";
+    showSnackbar("Mappa anomalie di temperatura caricata");
+  } else {
+    disableWarming();
+    if (btn) btn.textContent = "Surriscaldamento globale";
+  }
+  btn?.classList.toggle("active", weatherState.showWarming);
+  if (yearRow) yearRow.style.display = weatherState.showWarming ? "flex" : "none";
+});
+
+// Warming year slider
+document.getElementById("warming-year-slider")?.addEventListener("input", (e) => {
+  const idx = parseInt(e.target.value);
+  const year = WARMING_YEARS[idx];
+  const label = document.getElementById("warming-year-label");
+  if (label) label.textContent = year;
+  if (weatherState.showWarming) setWarmingYear(year);
+});
+
+// ── CCTV toggle ────────────────────────────────────────────────────────────
+document.getElementById("toggle-cctv-button")?.addEventListener("click", async () => {
+  weatherState.showCctv = !weatherState.showCctv;
+  const btn = document.getElementById("toggle-cctv-button");
+  if (weatherState.showCctv) {
+    if (btn) btn.textContent = "Caricamento webcam…";
+    await enableCctv();
+    if (btn) btn.textContent = "Nascondi Webcam & CCTV";
+    showSnackbar("Webcam pubbliche caricate");
+  } else {
+    disableCctv();
+    if (btn) btn.textContent = "Webcam & CCTV";
+  }
+  btn?.classList.toggle("active", weatherState.showCctv);
+});
+
+// ── NATO toggle ─────────────────────────────────────────────────────────────
+document.getElementById("toggle-nato-button")?.addEventListener("click", () => {
+  weatherState.showNato = !weatherState.showNato;
+  const btn = document.getElementById("toggle-nato-button");
+  const filters = document.getElementById("nato-filters");
+  if (weatherState.showNato) {
+    enableNato();
+    if (btn) btn.textContent = "Nascondi basi NATO";
+    showSnackbar(`${NATO_NATIONS ? Object.keys(NATO_NATIONS).length : ""} nazioni NATO — ${document.querySelectorAll("#nato-filters .filter-chip.active").length} filtri attivi`);
+  } else {
+    disableNato();
+    if (btn) btn.textContent = "Basi NATO";
+  }
+  btn?.classList.toggle("active", weatherState.showNato);
+  if (filters) filters.style.display = weatherState.showNato ? "" : "none";
+});
+
+document.getElementById("nato-filters")?.addEventListener("click", (e) => {
+  const nation = e.target.dataset.natoNation;
+  if (!nation) return;
+  const nowActive = !e.target.classList.contains("active");
+  e.target.classList.toggle("active", nowActive);
+  setNatoFilter(nation, nowActive);
+});
+
+// ── Seas toggle ─────────────────────────────────────────────────────────────
+document.getElementById("toggle-seas-button")?.addEventListener("click", () => {
+  weatherState.showSeas = !weatherState.showSeas;
+  const btn = document.getElementById("toggle-seas-button");
+  if (weatherState.showSeas) {
+    enableSeas();
+    if (btn) btn.textContent = "Nascondi mari e oceani";
+    showSnackbar("Mappa mari e oceani caricata");
+  } else {
+    disableSeas();
+    if (btn) btn.textContent = "Mari e oceani";
+  }
+  btn?.classList.toggle("active", weatherState.showSeas);
+});
+
+// ── Fishing toggle ──────────────────────────────────────────────────────────
+document.getElementById("toggle-fishing-button")?.addEventListener("click", () => {
+  weatherState.showFishing = !weatherState.showFishing;
+  const btn = document.getElementById("toggle-fishing-button");
+  if (weatherState.showFishing) {
+    enableFishing();
+    if (btn) btn.textContent = "Nascondi zone di pesca";
+    showSnackbar("Zone di pesca FAO caricate");
+  } else {
+    disableFishing();
+    if (btn) btn.textContent = "Zone di pesca (FAO)";
+  }
+  btn?.classList.toggle("active", weatherState.showFishing);
+});
+
+// ── Oil/Gas toggle ──────────────────────────────────────────────────────────
+document.getElementById("toggle-oilgas-button")?.addEventListener("click", () => {
+  weatherState.showOilGas = !weatherState.showOilGas;
+  const btn = document.getElementById("toggle-oilgas-button");
+  const oilgasFilters = document.getElementById("oilgas-filters");
+  if (weatherState.showOilGas) {
+    enableOilGas(earth);
+    setSkyDimming(0.15);
+    if (btn) btn.textContent = "Nascondi petrolio & gas";
+    if (oilgasFilters) oilgasFilters.style.display = "flex";
+    showSnackbar(`${OIL_GAS_DEPOSITS.length} giacimenti caricati — trasparenza globo attiva`);
+  } else {
+    disableOilGas(earth);
+    setSkyDimming(1.0);
+    if (btn) btn.textContent = "Giacimenti petrolio & gas";
+    if (oilgasFilters) oilgasFilters.style.display = "none";
+  }
+  btn?.classList.toggle("active", weatherState.showOilGas);
+});
+
+// ── Oil/Gas filter chips ─────────────────────────────────────────────────────
+document.querySelectorAll("#oilgas-filters .filter-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const type = chip.dataset.oilgas;
+    if (!type) return;
+    chip.classList.toggle("active");
+    setOilGasFilter(type, chip.classList.contains("active"));
+  });
+});
+
+// Refresh buttons — force re-download data for specific features
+
+/** Spin a refresh button while an async action runs. */
+async function _doRefresh(id, fn) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.classList.add("spinning");
+  try { await fn(); } finally { btn.classList.remove("spinning"); }
+}
+
+/** Generic re-render helper for static layers: disable+enable if active. Awaits async enables. */
+async function _rerender(isActive, disable, enable) {
+  if (!isActive) return;
+  disable();
+  await enable();
+}
+
+document.getElementById("refresh-heatmap")?.addEventListener("click", () => {
+  _doRefresh("refresh-heatmap", async () => {
+    if (weatherState.showHeatmap) buildHeatmapCanvas(weatherState.points);
+  });
+});
+
+document.getElementById("refresh-wind")?.addEventListener("click", () => {
+  _doRefresh("refresh-wind", async () => {
+    if (weatherState.showWind) {
+      setStatus(t("status.updating"));
+      await refreshGlobalWeather(true, samplePoints, summaryPoints);
+      buildWindField(weatherState.points, weatherState.windAltitudeLevel);
+    }
+  });
+});
+
+document.getElementById("refresh-precipitation")?.addEventListener("click", () => {
+  _doRefresh("refresh-precipitation", async () => {
+    if (weatherState.showPrecipitation) {
+      setStatus(t("status.radarLoading"));
+      const result = await fetchAndApplyRainViewer();
+      if (result) {
+        weatherState.useRainViewer = true;
+        setStatus(t("status.radarLoaded", { age: result.ageMinutes }));
+      } else {
+        weatherState.useRainViewer = false;
+        setStatus(t("status.radarError"));
+        buildPrecipitationCanvas(weatherState.points);
+      }
+    }
+  });
+});
+
+// ── Remaining refresh buttons ──────────────────────────────────────────────────
+
+document.getElementById("refresh-markers")?.addEventListener("click", () => {
+  _doRefresh("refresh-markers", async () => {
+    if (!weatherState.showMarkers) updateMarkerVisibility(weatherState.points, true);
+  });
+});
+
+document.getElementById("refresh-lightning")?.addEventListener("click", () => {
+  _doRefresh("refresh-lightning", async () => {
+    if (weatherState.showLightning) refreshLightning();
+  });
+});
+
+document.getElementById("refresh-terminator")?.addEventListener("click", () => {
+  _doRefresh("refresh-terminator", async () => {
+    if (weatherState.showTerminator) updateSunDirection(Date.now());
+  });
+});
+
+document.getElementById("refresh-tilt-simple")?.addEventListener("click", () => {
+  _doRefresh("refresh-tilt-simple", async () => {
+    if (weatherState.tiltMode === "simple") _computeTiltQuat("simple");
+  });
+});
+
+document.getElementById("refresh-tilt-seasonal")?.addEventListener("click", () => {
+  _doRefresh("refresh-tilt-seasonal", async () => {
+    if (weatherState.tiltMode === "seasonal") _computeTiltQuat("seasonal");
+  });
+});
+
+document.getElementById("refresh-satellites")?.addEventListener("click", () => {
+  _doRefresh("refresh-satellites", async () => {
+    if (weatherState.showSatellites) await refreshSatellites();
+  });
+});
+
+document.getElementById("refresh-aurora")?.addEventListener("click", () => {
+  _doRefresh("refresh-aurora", async () => {
+    if (weatherState.showAurora) await refreshAurora();
+  });
+});
+
+document.getElementById("refresh-aircraft")?.addEventListener("click", () => {
+  _doRefresh("refresh-aircraft", async () => {
+    if (weatherState.showAircraft) await refreshAircraft();
+  });
+});
+
+document.getElementById("refresh-ships")?.addEventListener("click", () => {
+  _doRefresh("refresh-ships", async () => {
+    _rerender(weatherState.showShips, disableShips, enableShips);
+  });
+});
+
+document.getElementById("refresh-traffic")?.addEventListener("click", () => {
+  _doRefresh("refresh-traffic", async () => {
+    _rerender(weatherState.showTraffic, disableTraffic, enableTraffic);
+  });
+});
+
+document.getElementById("refresh-economy")?.addEventListener("click", () => {
+  _doRefresh("refresh-economy", async () => {
+    _rerender(weatherState.showEconomy, disableEconomy, enableEconomy);
+  });
+});
+
+document.getElementById("refresh-anthropology")?.addEventListener("click", () => {
+  _doRefresh("refresh-anthropology", async () => {
+    _rerender(weatherState.showAnthropology, disableAnthropology, enableAnthropology);
+  });
+});
+
+document.getElementById("refresh-religion")?.addEventListener("click", () => {
+  _doRefresh("refresh-religion", async () => {
+    _rerender(weatherState.showReligion, disableReligion, () => enableReligion());
+  });
+});
+
+document.getElementById("refresh-energy")?.addEventListener("click", () => {
+  _doRefresh("refresh-energy", async () => {
+    _rerender(weatherState.showEnergy, disableEnergy, () => enableEnergy());
+  });
+});
+
+document.getElementById("refresh-deforestation")?.addEventListener("click", () => {
+  _doRefresh("refresh-deforestation", async () => {
+    _rerender(weatherState.showDeforestation, disableDeforestation, enableDeforestation);
+  });
+});
+
+document.getElementById("refresh-desertification")?.addEventListener("click", () => {
+  _doRefresh("refresh-desertification", async () => {
+    _rerender(weatherState.showDesertification, disableDesertification, enableDesertification);
+  });
+});
+
+document.getElementById("refresh-ice")?.addEventListener("click", () => {
+  _doRefresh("refresh-ice", async () => {
+    _rerender(weatherState.showIce, disableIce, enableIce);
+  });
+});
+
+document.getElementById("refresh-warming")?.addEventListener("click", () => {
+  _doRefresh("refresh-warming", async () => {
+    _rerender(weatherState.showWarming, disableWarming, () => enableWarming());
+  });
+});
+
+document.getElementById("refresh-nato")?.addEventListener("click", () => {
+  _doRefresh("refresh-nato", async () => {
+    _rerender(weatherState.showNato, disableNato, enableNato);
+  });
+});
+
+document.getElementById("refresh-seas")?.addEventListener("click", () => {
+  _doRefresh("refresh-seas", async () => {
+    _rerender(weatherState.showSeas, disableSeas, enableSeas);
+  });
+});
+
+document.getElementById("refresh-fishing")?.addEventListener("click", () => {
+  _doRefresh("refresh-fishing", async () => {
+    _rerender(weatherState.showFishing, disableFishing, enableFishing);
+  });
+});
+
+document.getElementById("refresh-time-zones")?.addEventListener("click", () => {
+  _doRefresh("refresh-time-zones", async () => {
+    if (weatherState.showTimeZones) buildTimeZoneCanvas(new Date());
+  });
+});
+
+document.getElementById("refresh-cctv")?.addEventListener("click", () => {
+  _doRefresh("refresh-cctv", async () => {
+    if (weatherState.showCctv) await refreshCctv();
+  });
+});
+
+document.getElementById("refresh-earth-interior")?.addEventListener("click", () => {
+  _doRefresh("refresh-earth-interior", async () => {
+    _rerender(weatherState.showEarthInterior, disableEarthInterior, enableEarthInterior);
+  });
+});
+
+document.getElementById("refresh-em-field")?.addEventListener("click", () => {
+  _doRefresh("refresh-em-field", async () => {
+    _rerender(weatherState.showEmField, disableEmField, enableEmField);
+  });
+});
+
+document.getElementById("refresh-water-bodies")?.addEventListener("click", () => {
+  _doRefresh("refresh-water-bodies", async () => {
+    if (weatherState.showWaterBodies) await buildWaterBodiesCanvas();
+  });
+});
+
+document.getElementById("refresh-tectonic")?.addEventListener("click", () => {
+  _doRefresh("refresh-tectonic", async () => {
+    _rerender(weatherState.showTectonic, disableTectonic, () => enableTectonic());
+  });
+});
+
+document.getElementById("refresh-volcanoes")?.addEventListener("click", () => {
+  _doRefresh("refresh-volcanoes", async () => {
+    _rerender(weatherState.showVolcanoes, disableVolcanoes, enableVolcanoes);
+  });
+});
+
+document.getElementById("refresh-minerals")?.addEventListener("click", () => {
+  _doRefresh("refresh-minerals", async () => {
+    _rerender(weatherState.showMinerals, disableMinerals, enableMinerals);
+  });
+});
+
+document.getElementById("refresh-oilgas")?.addEventListener("click", () => {
+  _doRefresh("refresh-oilgas", async () => {
+    _rerender(weatherState.showOilGas, disableOilGas, () => enableOilGas(earth));
+  });
 });
 
 // Language selector
@@ -982,6 +2032,22 @@ dom.languageSelect.addEventListener("change", () => {
     refreshSelectedPointWeather(true);
   }
 });
+
+// ── Accordion active highlight ─────────────────────────────────────────────
+// Whenever a feature button gains/loses "active", update the parent accordion-item
+function _syncAccordionHighlights() {
+  document.querySelectorAll(".accordion-item").forEach(item => {
+    const hasActive = item.querySelector(".feature-button.active, .layer-toggle-btn.active") !== null;
+    item.classList.toggle("has-active", hasActive);
+  });
+}
+
+// Use MutationObserver so updates happen automatically for every toggle
+const _accordionObserver = new MutationObserver(_syncAccordionHighlights);
+const _leftSidebar = document.querySelector(".hud");
+if (_leftSidebar) {
+  _accordionObserver.observe(_leftSidebar, { attributes: true, attributeFilter: ["class"], subtree: true });
+}
 
 // Initial data fetch
 refreshGlobalWeather(false, samplePoints, summaryPoints);
@@ -1038,55 +2104,9 @@ function animate() {
 
   // Status bar — layer stats (update every 30 frames to avoid thrashing)
   _sbUpdateCounter++;
-  if (_sbUpdateCounter >= 30) {
+  if (_sbUpdateCounter >= 30 && _sbGroups) {
     _sbUpdateCounter = 0;
-    // Weather points
-    const nPts = weatherState.points?.length ?? 0;
-    if (nPts > 0 && weatherState.showMarkers) {
-      _sbWeather.textContent = `METEO ${nPts}`;
-      _sbWeather.style.display = "";
-    } else { _sbWeather.style.display = "none"; }
-    // Wind
-    if (weatherState.showWind) {
-      _sbWind.textContent = `VENTO ${weatherState.windAltitudeLevel}`;
-      _sbWind.style.display = "";
-    } else { _sbWind.style.display = "none"; }
-    // Satellites
-    if (weatherState.showSatellites) {
-      _sbSatellites.textContent = `SAT ${getSatelliteCount()}`;
-      _sbSatellites.style.display = "";
-    } else { _sbSatellites.style.display = "none"; }
-    // Aircraft
-    if (weatherState.showAircraft) {
-      _sbAircraft.textContent = `AEREI ${getAircraftCount()}`;
-      _sbAircraft.style.display = "";
-    } else { _sbAircraft.style.display = "none"; }
-    // Ships
-    if (weatherState.showShips) {
-      _sbShips.textContent = `NAVI ${getShipCount()}`;
-      _sbShips.style.display = "";
-    } else { _sbShips.style.display = "none"; }
-    // Traffic
-    if (weatherState.showTraffic) {
-      _sbTraffic.textContent = `TRAFFICO ${getTrafficVehicleCount()}`;
-      _sbTraffic.style.display = "";
-    } else { _sbTraffic.style.display = "none"; }
-    // Lightning
-    if (weatherState.showLightning) {
-      _sbLightning.textContent = "FULMINI";
-      _sbLightning.style.display = "";
-    } else { _sbLightning.style.display = "none"; }
-    // Clouds
-    if (weatherState.cloudMode !== "off") {
-      _sbClouds.textContent = `NUVOLE ${weatherState.cloudMode === "aesthetic" ? "EST" : "SAT"}`;
-      _sbClouds.style.display = "";
-    } else { _sbClouds.style.display = "none"; }
-    // OSM tiles
-    if (_camDist < 6.0 || getDataZoom() > 0) {
-      const dz = getDataZoom();
-      _sbOsm.textContent = dz > 0 ? `OSM z${getOSMZoom()}+${dz}` : `OSM z${getOSMZoom()}`;
-      _sbOsm.style.display = "";
-    } else { _sbOsm.style.display = "none"; }
+    _updateStatusBarGroups(_camDist);
   }
 
   // Sky dimming (smooth transition — only run while animating)
@@ -1130,22 +2150,152 @@ function animate() {
     updateTraffic(dt, _camDist);
   }
 
+  // Aurora
+  if (weatherState.showAurora) {
+    updateAurora(dt);
+  }
+
+  // CCTV overlay update
+  if (weatherState.showCctv) {
+    updateCctv();
+  }
+
   // Animated earth interior layers — update when cross-section or full-sphere layers are active
   if (weatherState.showEarthInterior || hasActiveFullSphereLayers()) {
     updateEarthInterior(dt);
   }
 
-  // Smooth globe centering — skip when already at target
-  const dx = weatherState.globeTargetX - globeGroup.position.x;
-  if (Math.abs(dx) > 0.001) {
-    globeGroup.position.x += dx * 0.06;
+  // Smooth sidebar zoom — animate camera.zoom toward target, then update projection
+  const dz = weatherState.globeTargetZoom - camera.zoom;
+  if (Math.abs(dz) > 0.001) {
+    camera.zoom += dz * 0.08;
+    camera.updateProjectionMatrix();
   }
-  // Keep OrbitControls target in sync so rotation is always around the globe center
-  controls.target.x = globeGroup.position.x;
+  // Globe always at center — keep OrbitControls target at origin
+  globeGroup.position.x = 0;
+  controls.target.x = 0;
 
-  // Smooth axial tilt — skip slerp when already at target (saves per-frame quaternion math)
-  if (1 - globeGroup.quaternion.dot(_targetQuat) > 0.00001) {
-    globeGroup.quaternion.slerp(_targetQuat, 0.04);
+  // ── Camera controller: continuous per-frame movement ──
+  if (_activeInputs.size > 0) {
+    let orbitChanged = false;
+
+    // Scale orbit speed with distance (like OrbitControls drag): slower when zoomed in
+    // Quadratic scaling so very close zoom (99-100%) is dramatically slower
+    const CAM_ORBIT_REFERENCE_DIST = 12.8; // default camera distance = 1× speed
+    const distScale = Math.min(Math.pow(_camDist / CAM_ORBIT_REFERENCE_DIST, 2), 8.0); // cap at 8×
+
+    // Orbit: WASD — quaternion-based rotation (no polar limits, free movement over poles)
+    const orbitH = ((_activeInputs.has("orbit-left") ? 1 : 0) - (_activeInputs.has("orbit-right") ? 1 : 0)) * CAM_ORBIT_SPEED * distScale * dt;
+    const orbitV = ((_activeInputs.has("orbit-down") ? 1 : 0) - (_activeInputs.has("orbit-up") ? 1 : 0)) * CAM_ORBIT_SPEED * distScale * dt;
+
+    if (orbitH !== 0 || orbitV !== 0) {
+      const offset = camera.position.clone().sub(controls.target);
+      // Horizontal: rotate around world Y
+      if (orbitH !== 0) {
+        const qH = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -orbitH);
+        offset.applyQuaternion(qH);
+        camera.up.applyQuaternion(qH);
+      }
+      // Vertical: rotate around camera's local right axis
+      if (orbitV !== 0) {
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        const qV = new THREE.Quaternion().setFromAxisAngle(right, orbitV);
+        offset.applyQuaternion(qV);
+        camera.up.applyQuaternion(qV);
+      }
+      camera.position.copy(controls.target).add(offset);
+      camera.lookAt(controls.target);
+      orbitChanged = true;
+    }
+
+    // Zoom: ↑/↓
+    if (_activeInputs.has("zoom-in") || _activeInputs.has("zoom-out")) {
+      const offset = camera.position.clone().sub(controls.target);
+      let r = offset.length();
+      if (_activeInputs.has("zoom-in"))  r -= CAM_ZOOM_SPEED * dt;
+      if (_activeInputs.has("zoom-out")) r += CAM_ZOOM_SPEED * dt;
+      r = Math.max(controls.minDistance, Math.min(controls.maxDistance, r));
+      offset.normalize().multiplyScalar(r);
+      camera.position.copy(controls.target).add(offset);
+      orbitChanged = true;
+    }
+
+    // Earth axis tilt: Q/E — accumulate into _userRotQuat (free rotation, no snap-back)
+    if (_activeInputs.has("rotate-left") || _activeInputs.has("rotate-right")) {
+      const viewAxis = new THREE.Vector3().subVectors(controls.target, camera.position).normalize();
+      const angle = CAM_ROTATE_SPEED * dt * (_activeInputs.has("rotate-left") ? -1 : 1);
+      const delta = new THREE.Quaternion().setFromAxisAngle(viewAxis, angle);
+      _userRotQuat.premultiply(delta);
+      _userRotQuat.normalize();
+    }
+  }
+
+  // Smooth axial tilt — combine tilt preset + user rotation, slerp toward combined target
+  _combinedQuat.copy(_targetQuat).multiply(_userRotQuat);
+  if (1 - globeGroup.quaternion.dot(_combinedQuat) > 0.00001) {
+    globeGroup.quaternion.slerp(_combinedQuat, 0.08);
+  }
+
+  // Compass reset: smoothly orient camera.up to world Y without moving camera position
+  if (_compassResetting && _compassResetTarget) {
+    controls.enabled = false;
+    camera.up.lerp(_compassResetTarget.up, 0.12);
+    camera.up.normalize();
+    camera.lookAt(controls.target);
+    if (camera.up.distanceTo(_compassResetTarget.up) < 0.005) {
+      _finishCompassReset();
+    }
+  }
+
+  // Update 2D compass — project cardinal directions onto compass canvas
+  if (_compassCtx) {
+    const cx = 64, cy = 64, r = 28; // canvas center & sphere radius
+    const dpr = window.devicePixelRatio || 1;
+    _compassCanvas.width = 128 * dpr;
+    _compassCanvas.height = 128 * dpr;
+    _compassCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    _compassCtx.clearRect(0, 0, 128, 128);
+
+    // Globe background circle
+    _compassCtx.beginPath();
+    _compassCtx.arc(cx, cy, r + 4, 0, Math.PI * 2);
+    _compassCtx.fillStyle = "rgba(5,12,28,0.7)";
+    _compassCtx.fill();
+    _compassCtx.strokeStyle = "rgba(100,160,255,0.25)";
+    _compassCtx.lineWidth = 1.5;
+    _compassCtx.stroke();
+
+    // Combined rotation: camera-inverse * globe
+    const invCamQ = camera.quaternion.clone().invert();
+    const combinedQ = invCamQ.clone().multiply(globeGroup.quaternion);
+
+    // Sort cardinals by depth (z) — draw back-to-front
+    const projected = _compassCardinals.map(c => {
+      const v = c.axis.clone().applyQuaternion(combinedQ);
+      return { ...c, sx: cx + v.x * r, sy: cy - v.y * r, z: v.z };
+    }).sort((a, b) => a.z - b.z);
+
+    _compassCtx.textAlign = "center";
+    _compassCtx.textBaseline = "middle";
+
+    for (const p of projected) {
+      const alpha = 0.3 + 0.7 * Math.max(0, p.z); // fade when behind
+      const scale = 0.8 + 0.4 * Math.max(0, p.z);
+      _compassCtx.globalAlpha = alpha;
+
+      // Dot
+      _compassCtx.beginPath();
+      _compassCtx.arc(p.sx, p.sy, 3 * scale, 0, Math.PI * 2);
+      _compassCtx.fillStyle = p.color;
+      _compassCtx.fill();
+
+      // Label
+      _compassCtx.font = `bold ${Math.round(p.size * scale)}px sans-serif`;
+      _compassCtx.fillStyle = p.color;
+      _compassCtx.fillText(p.label, p.sx, p.sy - 10 * scale);
+    }
+    _compassCtx.globalAlpha = 1;
   }
 
   controls.update();
@@ -1157,9 +2307,11 @@ function handleResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   updateGlobeCenter();
+  updateTectonicResolution();
 }
 
 function handlePointerDown(event) {
+  _cancelCompassReset();
   updatePointer(event);
   interactionState.isPointerDown = true;
   interactionState.downX = event.clientX;
@@ -1256,6 +2408,38 @@ function handlePointerUp(event) {
     }
   }
 
+  // Priority 1.5: Volcanoes (when visible)
+  if (weatherState.showVolcanoes) {
+    const volMesh = getVolcanoMesh();
+    if (volMesh) {
+      const hits = raycaster.intersectObject(volMesh);
+      if (hits.length > 0 && hits[0].instanceId != null) {
+        const data = getVolcanoData(hits[0].instanceId);
+        if (data) {
+          _selectedEntityIndex = hits[0].instanceId;
+          _showVolcanoCard(data, event.clientX, event.clientY);
+          return;
+        }
+      }
+    }
+  }
+
+  // Priority 1.5: Minerals (when visible)
+  if (weatherState.showMinerals) {
+    const minMesh = getMineralMesh();
+    if (minMesh) {
+      const hits = raycaster.intersectObject(minMesh);
+      if (hits.length > 0 && hits[0].instanceId != null) {
+        const data = getMineralData(hits[0].instanceId);
+        if (data) {
+          _selectedEntityIndex = hits[0].instanceId;
+          _showMineralCard(data, event.clientX, event.clientY);
+          return;
+        }
+      }
+    }
+  }
+
   // Priority 1.5: Economy polygons
   if (weatherState.showEconomy) {
     const ecoMeshes = getEconomyMeshes();
@@ -1286,6 +2470,155 @@ function handlePointerUp(event) {
           _showAnthropologyCard(data, event.clientX, event.clientY);
           return;
         }
+      }
+    }
+  }
+
+  // Priority 1.5: Religion polygons
+  if (weatherState.showReligion) {
+    const relMeshes = getReligionMeshes();
+    if (relMeshes.length > 0) {
+      const hits = raycaster.intersectObjects(relMeshes, false);
+      if (hits.length > 0) {
+        const ci = hits[0].object.userData.countryIndex;
+        const data = getReligionCountry(ci);
+        if (data) {
+          _selectedEntityIndex = ci;
+          _showReligionCard(data, event.clientX, event.clientY);
+          return;
+        }
+      }
+    }
+  }
+
+  // Priority 1.6: Energy polygons
+  if (weatherState.showEnergy) {
+    const enMeshes = getEnergyMeshes();
+    if (enMeshes.length > 0) {
+      const hits = raycaster.intersectObjects(enMeshes, false);
+      if (hits.length > 0) {
+        const ci = hits[0].object.userData.countryIndex;
+        const data = getEnergyCountry(ci);
+        if (data) {
+          _selectedEntityIndex = ci;
+          _showEnergyCard(data, event.clientX, event.clientY);
+          return;
+        }
+      }
+    }
+  }
+
+  // Priority 1.65: CCTV markers
+  if (weatherState.showCctv) {
+    const mesh = getCctvMesh();
+    if (mesh) {
+      const hits = raycaster.intersectObject(mesh);
+      if (hits.length > 0 && hits[0].instanceId != null) {
+        const data = getCctvData(hits[0].instanceId);
+        if (data) {
+          const latDir = data.lat >= 0 ? "N" : "S";
+          const lonDir = data.lon >= 0 ? "E" : "W";
+          const previewUrl = getCctvPreviewUrl(data);
+          _selectedEntityType = "cctv";
+          _entityCardTitle.textContent = `📷 ${data.title}`;
+          _entityCardSubtitle.textContent = `${Math.abs(data.lat).toFixed(4)}° ${latDir}, ${Math.abs(data.lon).toFixed(4)}° ${lonDir}`;
+          _entityCardBody.innerHTML = previewUrl
+            ? [
+                `<div class="entity-cctv-media">`,
+                `<img class="entity-cctv-preview" src="${previewUrl}" alt="Anteprima CCTV" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`,
+                `<div class="entity-cctv-fallback">Anteprima non disponibile</div>`,
+                `</div>`,
+                `<span class="label">Stato</span><span class="value" style="color:#0f0">● Live</span>`,
+              ].join("")
+            : `<span class="label">Feed</span><span class="value">Nessuna anteprima</span>`;
+          _showEntityCard(event.clientX, event.clientY);
+          return;
+        }
+      }
+    }
+  }
+
+  // Priority 1.65: NATO markers
+  if (weatherState.showNato) {
+    const mesh = getNatoMesh();
+    if (mesh) {
+      const hits = raycaster.intersectObject(mesh);
+      if (hits.length > 0 && hits[0].instanceId != null) {
+        const data = getNatoBaseData(hits[0].instanceId);
+        if (data) {
+          _selectedEntityType = "nato";
+          _entityCardTitle.textContent = `${data.nationFlag} ${data.name}`;
+          _entityCardSubtitle.textContent = `${data.type} · ${data.country}`;
+          _entityCardBody.innerHTML = [
+            `<span class="label">Nazione operante</span><span class="value" style="color:${data.nationColor}">${data.nationLabel}</span>`,
+            `<span class="label">Personale</span><span class="value">${data.personnelStr}</span>`,
+            `<span class="label">Tipo</span><span class="value">${data.type}</span>`,
+          ].join("");
+          _showEntityCard(event.clientX, event.clientY);
+          return;
+        }
+      }
+    }
+  }
+
+  // Priority 1.66: Oil/gas deposit markers
+  if (weatherState.showOilGas) {
+    const mesh = getOilGasMesh();
+    if (mesh) {
+      const hits = raycaster.intersectObject(mesh);
+      if (hits.length > 0 && hits[0].instanceId != null) {
+        const data = getDepositData(hits[0].instanceId);
+        if (data) {
+          _selectedEntityType = "oilgas";
+          const typeIcon = data.type === "oil" ? "🛢️" : data.type === "gas" ? "💨" : "⚡";
+          _entityCardTitle.textContent = `${typeIcon} ${data.name}`;
+          _entityCardSubtitle.textContent = `${data.country} · ${data.type === "oil" ? "Petrolio" : data.type === "gas" ? "Gas naturale" : "Misto"}`;
+          _entityCardBody.innerHTML = [
+            `<span class="label">Riserve</span><span class="value">${data.reserves.toLocaleString("it-IT")} ${data.type === "gas" ? "tcf" : "Mld barili"}</span>`,
+            `<span class="label">Coordinate</span><span class="value">${data.lat.toFixed(2)}°, ${data.lon.toFixed(2)}°</span>`,
+          ].join("");
+          _showEntityCard(event.clientX, event.clientY);
+          return;
+        }
+      }
+    }
+  }
+
+  // Priority 1.7: Deforestation polygons
+  if (weatherState.showDeforestation) {
+    const meshes = getDeforestationMeshes();
+    if (meshes.length > 0) {
+      const hits = raycaster.intersectObjects(meshes, false);
+      if (hits.length > 0) {
+        const ci = hits[0].object.userData.countryIndex;
+        const data = getDeforestationCountry(ci);
+        if (data) { _selectedEntityIndex = ci; _showDeforestationCard(data, event.clientX, event.clientY); return; }
+      }
+    }
+  }
+
+  // Priority 1.7: Desertification polygons
+  if (weatherState.showDesertification) {
+    const meshes = getDesertificationMeshes();
+    if (meshes.length > 0) {
+      const hits = raycaster.intersectObjects(meshes, false);
+      if (hits.length > 0) {
+        const ci = hits[0].object.userData.countryIndex;
+        const data = getDesertificationCountry(ci);
+        if (data) { _selectedEntityIndex = ci; _showDesertificationCard(data, event.clientX, event.clientY); return; }
+      }
+    }
+  }
+
+  // Priority 1.7: Warming polygons
+  if (weatherState.showWarming) {
+    const meshes = getWarmingMeshes();
+    if (meshes.length > 0) {
+      const hits = raycaster.intersectObjects(meshes, false);
+      if (hits.length > 0) {
+        const ci = hits[0].object.userData.countryIndex;
+        const data = getWarmingCountry(ci);
+        if (data) { _selectedEntityIndex = ci; _showWarmingCard(data, event.clientX, event.clientY); return; }
       }
     }
   }
@@ -1362,10 +2695,11 @@ function handleToggleTerminator() {
 
 function updateGlobeCenter() {
   const vw = window.innerWidth;
-  const leftW = weatherState.leftSidebarOpen ? Math.min(430, vw) : 0;
-  const rightW = weatherState.rightSidebarOpen ? Math.min(340, vw) : 44;
-  const center = leftW + (vw - leftW - rightW) / 2;
-  const screenCenter = vw / 2;
-  const offsetPx = center - screenCenter;
-  weatherState.globeTargetX = offsetPx * 0.012;
+  const leftW  = weatherState.leftSidebarOpen  ? Math.min(430, vw) : 0;
+  const rightW = weatherState.rightSidebarOpen ? Math.min(340, vw) : 0;
+  const available = vw - leftW - rightW;
+  const baseline  = vw; // collapsed sidebar takes no space (toggle is overlay)
+  // Globe stays at X=0 (always centered). Adjust zoom proportionally.
+  weatherState.globeTargetX    = 0;
+  weatherState.globeTargetZoom = Math.max(0.55, available / baseline);
 }

@@ -10,9 +10,10 @@ import { cloudCoverCanvas, cloudCoverTexture } from "./scene.js";
  *   0% → alpha 0 (transparent), 100% → alpha 200 (~78% opacity)
  */
 export function buildCloudCanvas(points) {
-  const W = 512, H = 256;
   const canvas = cloudCoverCanvas;
   const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
   ctx.clearRect(0, 0, W, H);
 
   const valid = points
@@ -59,7 +60,8 @@ export function buildCloudCanvas(points) {
  * Returns the ImageData without writing to any canvas — lets callers blend it.
  */
 export function buildCloudImageData(points) {
-  const W = 512, H = 256;
+  const W = cloudCoverCanvas.width;
+  const H = cloudCoverCanvas.height;
   const imageData = new ImageData(W, H);
   const d = imageData.data;
 

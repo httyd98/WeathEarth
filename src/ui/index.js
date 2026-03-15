@@ -82,6 +82,9 @@ export function updateSelectionPanel() {
     return;
   }
 
+  document.getElementById("selection-panel")?.style.setProperty("display", "");
+  document.getElementById("forecast-panel")?.style.setProperty("display", "");
+
   const point = weatherState.selectedPoint;
   dom.selectionName.textContent = point.label;
   dom.selectionCoordinates.textContent = formatCoordinates(point.lat, point.lon);
@@ -123,6 +126,8 @@ export function updateSelectionPanel() {
 }
 
 export function resetSelectionPanel() {
+  document.getElementById("selection-panel")?.style.setProperty("display", "none");
+  document.getElementById("forecast-panel")?.style.setProperty("display", "none");
   dom.selectionName.textContent = t("selection.none");
   dom.selectionCondition.textContent = "-";
   dom.selectionTemperature.textContent = "-";

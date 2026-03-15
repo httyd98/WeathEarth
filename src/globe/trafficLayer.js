@@ -10,9 +10,18 @@ import { weatherState } from "../state.js";
 
 const EARTH_RADIUS_KM = 6371;
 const MAX_VEHICLES = 2000;
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+// Try multiple Overpass endpoints in sequence for reliability
+const OVERPASS_URLS = [
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+];
 const VEHICLE_UPDATE_INTERVAL = 2; // seconds between road data refetch checks
-const OVERPASS_COOLDOWN = 15; // min seconds between Overpass queries
+const OVERPASS_COOLDOWN = 20; // min seconds between Overpass queries
+
+// Natural Earth global roads for the world-level overlay
+const NATURAL_EARTH_ROADS_URL =
+  "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_10m_roads_north_america.geojson";
 const SCALE_FACTOR = 200; // exaggeration for vehicle visibility
 
 // Vehicle dimensions in globe units (exaggerated)
@@ -117,17 +126,27 @@ async function _fetchRoads(south, west, north, east) {
   const key = `${south.toFixed(3)},${west.toFixed(3)},${north.toFixed(3)},${east.toFixed(3)}`;
   if (_roadCache.has(key)) return _roadCache.get(key);
 
-  const query = `[out:json][timeout:10];way["highway"~"motorway|trunk|primary|secondary|tertiary"](${south},${west},${north},${east});out geom;`;
+  const query = `[out:json][timeout:25];way["highway"~"motorway|trunk|primary|secondary|tertiary"](${south},${west},${north},${east});out geom;`;
+
+  // Try multiple Overpass endpoints
+  let resp = null;
+  for (const url of OVERPASS_URLS) {
+    try {
+      resp = await _limiter.fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+      });
+      if (resp.ok) break;
+      console.warn(`[trafficLayer] ${url} responded ${resp.status}, trying next…`);
+    } catch (e) {
+      console.warn(`[trafficLayer] ${url} failed:`, e.message);
+    }
+  }
 
   try {
-    const resp = await _limiter.fetch(OVERPASS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-
-    if (!resp.ok) {
-      console.warn(`[trafficLayer] Overpass responded ${resp.status}`);
+    if (!resp?.ok) {
+      console.warn("[trafficLayer] All Overpass endpoints failed");
       return [];
     }
 
@@ -440,19 +459,19 @@ export function updateTraffic(dt, camDist) {
     // Smooth animation every frame
     _updateVehiclePositions(dt);
 
-  } else if (camDist >= 8 && camDist < 15) {
-    // --- Medium zoom: colored road overlay ---
+  } else if (camDist >= 8) {
+    // --- Medium/global zoom: colored road overlay ---
 
     if (_vehicleMesh) _vehicleMesh.visible = false;
 
-    // Fetch roads with a larger bbox for this zoom level
+    // Fetch roads — scale bbox with distance so farther out gets broader coverage
     const now = performance.now() / 1000;
     if (now - _lastVehicleUpdate >= VEHICLE_UPDATE_INTERVAL * 3) {
       _lastVehicleUpdate = now;
 
       const center = _getCenterLatLon();
       if (center) {
-        const halfDeg = 5;
+        const halfDeg = Math.min(20, 5 * (camDist / 8));
         const south = center.lat - halfDeg;
         const north = center.lat + halfDeg;
         const west = center.lon - halfDeg;
@@ -478,10 +497,6 @@ export function updateTraffic(dt, camDist) {
       if (_overlayMesh) _overlayMesh.visible = true;
     }
 
-  } else {
-    // --- Far zoom: hide everything ---
-    if (_vehicleMesh) _vehicleMesh.visible = false;
-    if (_overlayMesh) _overlayMesh.visible = false;
   }
 }
 

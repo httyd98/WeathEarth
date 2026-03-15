@@ -36,6 +36,18 @@
 					</div>
 				</div>
 
+				<div class="panel search-sidebar-panel">
+					<form id="location-search-form" class="search-form">
+						<div class="search-input-wrap">
+							<button id="locate-me-button" class="location-button" type="button" aria-label="Usa posizione attuale" data-i18n-aria-label="search.locateMe">
+								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.2a2.8 2.8 0 1 1 0-5.6a2.8 2.8 0 0 1 0 5.6Z" fill="currentColor"/></svg>
+							</button>
+							<input id="location-search" type="search" placeholder="Cerca una città o una località" data-i18n-placeholder="search.placeholder" autocomplete="off" />
+						</div>
+						<button id="location-search-button" type="submit" data-i18n="search.submit">Cerca</button>
+					</form>
+				</div>
+
 				<div class="panel metrics-panel">
 					<div class="metrics-grid">
 						<div>
@@ -62,7 +74,7 @@
 					</div>
 				</div>
 
-				<div class="panel details-panel">
+				<div id="selection-panel" class="panel details-panel" style="display:none">
 					<div class="section-heading">
 						<p class="eyebrow" data-i18n="selection.eyebrow">Punto selezionato</p>
 						<p id="selection-name" class="section-title">Nessun punto selezionato</p>
@@ -81,7 +93,7 @@
 					</dl>
 				</div>
 
-				<div class="panel forecast-panel">
+				<div id="forecast-panel" class="panel forecast-panel" style="display:none">
 					<div class="section-heading">
 						<p class="eyebrow" data-i18n="forecast.eyebrow">Previsioni</p>
 						<p class="section-title" data-i18n="forecast.title">Località selezionata</p>
@@ -166,7 +178,10 @@
 								<button data-cloud="aesthetic" class="cloud-option"        type="button" data-i18n="clouds.aesthetic">Estetiche</button>
 								<button data-cloud="real"      class="cloud-option"        type="button" data-i18n="clouds.real">Reali</button>
 							</div>
+							<div class="feature-row">
 							<button id="toggle-markers-button"       class="feature-button" type="button">Nascondi punti meteo</button>
+							<button id="refresh-markers" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
 							<div class="feature-row">
 								<button id="toggle-heatmap-button"       class="feature-button" type="button">Heatmap temperatura</button>
 								<button id="refresh-heatmap" class="refresh-btn" type="button" title="Refresh">&#8635;</button>
@@ -179,7 +194,10 @@
 								<button id="toggle-precipitation-button" class="feature-button" type="button">Precipitazioni</button>
 								<button id="refresh-precipitation" class="refresh-btn" type="button" title="Refresh">&#8635;</button>
 							</div>
+							<div class="feature-row">
 							<button id="toggle-lightning-button" class="feature-button" type="button" data-i18n="btn.lightning">Fulmini</button>
+							<button id="refresh-lightning" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
 						</div>
 					</details>
 
@@ -191,15 +209,31 @@
 							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
 						</summary>
 						<div class="accordion-body sidebar-buttons">
-							<button id="toggle-terminator-button"    class="feature-button" type="button">Giorno / Notte</button>
-							<button id="toggle-tilt-simple-button"   class="feature-button" type="button">Asse fisso 23.4°</button>
-							<button id="toggle-tilt-seasonal-button" class="feature-button" type="button">Asse solare (stagionale)</button>
-							<button id="toggle-satellites-button"    class="feature-button" type="button" data-i18n="btn.satellites">Satelliti</button>
+							<div class="feature-row">
+								<button id="toggle-terminator-button"    class="feature-button" type="button">Giorno / Notte</button>
+								<button id="refresh-terminator" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-tilt-simple-button"   class="feature-button" type="button">Asse fisso 23.4°</button>
+								<button id="refresh-tilt-simple" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-tilt-seasonal-button" class="feature-button" type="button">Asse solare (stagionale)</button>
+								<button id="refresh-tilt-seasonal" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-satellites-button"    class="feature-button" type="button" data-i18n="btn.satellites">Satelliti</button>
+								<button id="refresh-satellites" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
 							<div id="satellite-filters" class="layer-filters" style="display:none">
 								<button class="filter-chip active" data-filter="leo">LEO</button>
 								<button class="filter-chip active" data-filter="meo">MEO</button>
 								<button class="filter-chip active" data-filter="geo">GEO</button>
 								<button class="filter-chip active" data-filter="heo">HEO</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-aurora-button" class="feature-button" type="button">Aurore boreali / australi</button>
+								<button id="refresh-aurora" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
 							</div>
 						</div>
 					</details>
@@ -212,14 +246,23 @@
 							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
 						</summary>
 						<div class="accordion-body sidebar-buttons">
-							<button id="toggle-aircraft-button" class="feature-button" type="button" data-i18n="btn.aircraft">Traffico aereo</button>
+							<div class="feature-row">
+								<button id="toggle-aircraft-button" class="feature-button" type="button" data-i18n="btn.aircraft">Traffico aereo</button>
+								<button id="refresh-aircraft" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
 							<div id="aircraft-filters" class="layer-filters" style="display:none">
 								<button class="filter-chip active" data-filter="low">Bassa quota</button>
 								<button class="filter-chip active" data-filter="mid">Media quota</button>
 								<button class="filter-chip active" data-filter="high">Alta quota</button>
 							</div>
-							<button id="toggle-ships-button" class="feature-button" type="button" data-i18n="btn.ships">Navi</button>
-							<button id="toggle-traffic-button" class="feature-button" type="button" data-i18n="btn.traffic">Traffico stradale</button>
+							<div class="feature-row">
+								<button id="toggle-ships-button" class="feature-button" type="button" data-i18n="btn.ships">Navi</button>
+								<button id="refresh-ships" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-traffic-button" class="feature-button" type="button" data-i18n="btn.traffic">Traffico stradale</button>
+								<button id="refresh-traffic" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
 						</div>
 					</details>
 
@@ -231,7 +274,10 @@
 						<span class="acc-arrow" aria-hidden="true">&#9662;</span>
 					</summary>
 					<div class="accordion-body sidebar-buttons">
-						<button id="toggle-economy-button" class="feature-button" type="button" data-i18n="btn.economy">Dati economici</button>
+						<div class="feature-row">
+							<button id="toggle-economy-button" class="feature-button" type="button" data-i18n="btn.economy">Dati economici</button>
+							<button id="refresh-economy" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
 						<div id="economy-filters" class="layer-filters" style="display:none">
 							<button class="filter-chip active" data-eco-metric="gdpB" data-i18n="eco.gdpB">PIB</button>
 							<button class="filter-chip" data-eco-metric="gdpPcUSD" data-i18n="eco.gdpPcUSD">PIB/cap</button>
@@ -251,7 +297,10 @@
 						<span class="acc-arrow" aria-hidden="true">&#9662;</span>
 					</summary>
 					<div class="accordion-body sidebar-buttons">
-						<button id="toggle-anthropology-button" class="feature-button" type="button" data-i18n="btn.anthropology">Dati demografici</button>
+						<div class="feature-row">
+							<button id="toggle-anthropology-button" class="feature-button" type="button" data-i18n="btn.anthropology">Dati demografici</button>
+							<button id="refresh-anthropology" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
 						<div id="anthropology-filters" class="layer-filters" style="display:none">
 							<button class="filter-chip active" data-anthro-metric="popM" data-i18n="anthro.popM">Popolazione</button>
 							<button class="filter-chip" data-anthro-metric="birthRate" data-i18n="anthro.birthRate">Natalità</button>
@@ -259,6 +308,147 @@
 							<button class="filter-chip" data-anthro-metric="medianAge" data-i18n="anthro.medianAge">Età med.</button>
 							<button class="filter-chip" data-anthro-metric="u14pct" data-i18n="anthro.u14pct">0–14 anni</button>
 							<button class="filter-chip" data-anthro-metric="plus65pct" data-i18n="anthro.plus65pct">65+ anni</button>
+						</div>
+						<!-- Religioni del mondo -->
+						<div class="feature-row">
+							<button id="toggle-religion-button" class="feature-button" type="button">Religioni del mondo</button>
+							<button id="refresh-religion" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
+						<div id="religion-filters" class="layer-filters" style="display:none;flex-wrap:wrap;gap:4px">
+							<button class="filter-chip active" data-religion-mode="dominant">Dominante</button>
+							<button class="filter-chip" data-religion-mode="christianity_catholic"   style="background:#ffdd44;color:#222">Cattolici</button>
+							<button class="filter-chip" data-religion-mode="christianity_protestant" style="background:#ffaa22;color:#222">Protestanti</button>
+							<button class="filter-chip" data-religion-mode="christianity_orthodox"   style="background:#ff8800;color:#fff">Ortodossi</button>
+							<button class="filter-chip" data-religion-mode="christianity_other"      style="background:#ffcc88;color:#222">Altro Crist.</button>
+							<button class="filter-chip" data-religion-mode="islam_sunni"             style="background:#44aaff;color:#fff">Islam Sunni</button>
+							<button class="filter-chip" data-religion-mode="islam_shia"              style="background:#2266cc;color:#fff">Islam Sciita</button>
+							<button class="filter-chip" data-religion-mode="hinduism"                style="background:#ff6633;color:#fff">Induismo</button>
+							<button class="filter-chip" data-religion-mode="buddhism"                style="background:#ee9900;color:#fff">Buddismo</button>
+							<button class="filter-chip" data-religion-mode="sikhism"                 style="background:#cc8800;color:#fff">Sikhismo</button>
+							<button class="filter-chip" data-religion-mode="judaism"                 style="background:#4466dd;color:#fff">Ebraismo</button>
+							<button class="filter-chip" data-religion-mode="folk_indigenous"         style="background:#77bb44;color:#fff">Tradizionali</button>
+							<button class="filter-chip" data-religion-mode="atheism_agnosticism"     style="background:#888;color:#fff">Ateismo</button>
+						</div>
+					</div>
+				</details>
+
+				<!-- ── Energia ── -->
+				<details class="accordion-item">
+					<summary class="accordion-header">
+						<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M11 2L3 12h7l-1 6 9-10h-7l1-6z"/></svg>
+						<span class="acc-label">Energia</span>
+						<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+					</summary>
+					<div class="accordion-body sidebar-buttons">
+						<div class="feature-row">
+							<button id="toggle-energy-button" class="feature-button" type="button">Produzione energetica</button>
+							<button id="refresh-energy" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
+						<div id="energy-filters" class="layer-filters" style="display:none;flex-wrap:wrap;gap:4px">
+							<button class="filter-chip active" data-energy-mode="dominant">Dominante</button>
+							<button class="filter-chip" data-energy-mode="coal"       style="background:#555555;color:#fff">Carbone</button>
+							<button class="filter-chip" data-energy-mode="gas"        style="background:#ff9933;color:#222">Gas</button>
+							<button class="filter-chip" data-energy-mode="oil"        style="background:#8b4513;color:#fff">Petrolio</button>
+							<button class="filter-chip" data-energy-mode="nuclear"    style="background:#9933ff;color:#fff">Nucleare</button>
+							<button class="filter-chip" data-energy-mode="hydro"      style="background:#0088ff;color:#fff">Idro</button>
+							<button class="filter-chip" data-energy-mode="wind"       style="background:#44ddff;color:#222">Eolico</button>
+							<button class="filter-chip" data-energy-mode="solar"      style="background:#ffdd00;color:#222">Solare</button>
+							<button class="filter-chip" data-energy-mode="biomass"    style="background:#88aa44;color:#fff">Biomassa</button>
+							<button class="filter-chip" data-energy-mode="geothermal" style="background:#ff6600;color:#fff">Geotermico</button>
+						</div>
+					</div>
+				</details>
+
+
+				<!-- ── Pericoli ── -->
+				<details class="accordion-item">
+					<summary class="accordion-header">
+						<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10 2L2 17h16L10 2z"/><line x1="10" y1="8" x2="10" y2="12"/><circle cx="10" cy="15" r="0.8" fill="currentColor" stroke="none"/></svg>
+						<span class="acc-label">Pericoli</span>
+						<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+					</summary>
+					<div class="accordion-body sidebar-buttons">
+						<!-- Deforestazione -->
+						<div class="feature-row">
+							<button id="toggle-deforestation-button" class="feature-button" type="button">Deforestazione</button>
+							<button id="refresh-deforestation" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
+						<div id="deforestation-filters" class="layer-filters" style="display:none;flex-wrap:wrap;gap:4px">
+							<button class="filter-chip active" data-deforestation-mode="cover">Copertura</button>
+							<button class="filter-chip" data-deforestation-mode="loss">Perdita annua</button>
+							<button class="filter-chip" data-deforestation-mode="cause">Causa</button>
+							<button class="filter-chip" data-deforestation-mode="trend">Tendenza</button>
+						</div>
+						<!-- Desertificazione -->
+						<div class="feature-row">
+							<button id="toggle-desertification-button" class="feature-button" type="button">Desertificazione</button>
+							<button id="refresh-desertification" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
+						<!-- Scioglimento ghiacci -->
+						<div class="feature-row">
+							<button id="toggle-ice-button" class="feature-button" type="button">Scioglimento ghiacci</button>
+							<button id="refresh-ice" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
+						<!-- Surriscaldamento globale -->
+						<div class="feature-row">
+							<button id="toggle-warming-button" class="feature-button" type="button">Surriscaldamento globale</button>
+							<button id="refresh-warming" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
+						<div id="warming-year-row" class="layer-filters" style="display:none;align-items:center;gap:8px;padding:4px 0">
+							<span style="font-size:9px;color:rgba(140,180,230,0.7);font-family:monospace">Anno:</span>
+							<input id="warming-year-slider" type="range" min="0" max="7" step="1" value="7" style="flex:1;accent-color:rgba(255,100,50,0.8)">
+							<span id="warming-year-label" style="font-size:10px;color:rgba(200,230,255,0.9);font-family:monospace;min-width:32px">2023</span>
+						</div>
+					</div>
+				</details>
+
+				<!-- ── Geopolitica ── -->
+				<details class="accordion-item">
+					<summary class="accordion-header">
+						<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><polygon points="10,2 12,8 18,8 13,12 15,18 10,14 5,18 7,12 2,8 8,8"/></svg>
+						<span class="acc-label">Geopolitica</span>
+						<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+					</summary>
+					<div class="accordion-body sidebar-buttons">
+						<div class="feature-row">
+							<button id="toggle-nato-button" class="feature-button" type="button">Basi NATO</button>
+							<button id="refresh-nato" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
+						<div id="nato-filters" class="layer-filters" style="display:none;flex-wrap:wrap;gap:4px">
+							<button class="filter-chip active" data-nato-nation="USA"  style="background:#3355ff;color:#fff">🇺🇸 USA</button>
+							<button class="filter-chip active" data-nato-nation="GBR"  style="background:#cc3322;color:#fff">🇬🇧 GBR</button>
+							<button class="filter-chip active" data-nato-nation="DEU"  style="background:#ffcc00;color:#222">🇩🇪 DEU</button>
+							<button class="filter-chip active" data-nato-nation="FRA"  style="background:#0055aa;color:#fff">🇫🇷 FRA</button>
+							<button class="filter-chip active" data-nato-nation="ITA"  style="background:#009933;color:#fff">🇮🇹 ITA</button>
+							<button class="filter-chip active" data-nato-nation="TUR"  style="background:#cc0000;color:#fff">🇹🇷 TUR</button>
+							<button class="filter-chip active" data-nato-nation="ESP"  style="background:#aa2211;color:#fff">🇪🇸 ESP</button>
+							<button class="filter-chip active" data-nato-nation="NLD"  style="background:#ff6600;color:#fff">🇳🇱 NLD</button>
+							<button class="filter-chip active" data-nato-nation="BEL"  style="background:#ffdd00;color:#222">🇧🇪 BEL</button>
+							<button class="filter-chip active" data-nato-nation="GRC"  style="background:#004488;color:#fff">🇬🇷 GRC</button>
+							<button class="filter-chip active" data-nato-nation="NOR"  style="background:#cc0011;color:#fff">🇳🇴 NOR</button>
+							<button class="filter-chip active" data-nato-nation="POL"  style="background:#dd1133;color:#fff">🇵🇱 POL</button>
+							<button class="filter-chip active" data-nato-nation="ROM"  style="background:#002266;color:#fff">🇷🇴 ROM</button>
+							<button class="filter-chip active" data-nato-nation="PRT"  style="background:#006600;color:#fff">🇵🇹 PRT</button>
+							<button class="filter-chip active" data-nato-nation="NATO" style="background:#4488cc;color:#fff">🏳️ NATO</button>
+						</div>
+					</div>
+				</details>
+
+				<!-- ── Mare ── -->
+				<details class="accordion-item">
+					<summary class="accordion-header">
+						<svg class="acc-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 10 Q5 7 8 10 Q11 13 14 10 Q17 7 20 10"/><path d="M2 14 Q5 11 8 14 Q11 17 14 14 Q17 11 20 14" opacity="0.5"/></svg>
+						<span class="acc-label">Mare</span>
+						<span class="acc-arrow" aria-hidden="true">&#9662;</span>
+					</summary>
+					<div class="accordion-body sidebar-buttons">
+						<div class="feature-row">
+							<button id="toggle-seas-button" class="feature-button" type="button">Mari e oceani</button>
+							<button id="refresh-seas" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+						</div>
+						<div class="feature-row">
+							<button id="toggle-fishing-button" class="feature-button" type="button">Zone di pesca (FAO)</button>
+							<button id="refresh-fishing" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
 						</div>
 					</div>
 				</details>
@@ -271,7 +461,14 @@
 							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
 						</summary>
 						<div class="accordion-body sidebar-buttons">
-							<button id="toggle-time-zones-button" class="feature-button" type="button" data-i18n="btn.timeZones">Orari globali</button>
+							<div class="feature-row">
+								<button id="toggle-time-zones-button" class="feature-button" type="button" data-i18n="btn.timeZones">Orari globali</button>
+								<button id="refresh-time-zones" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-cctv-button" class="feature-button" type="button">Webcam &amp; CCTV</button>
+								<button id="refresh-cctv" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
 						</div>
 					</details>
 
@@ -288,14 +485,103 @@
 							<span class="acc-arrow" aria-hidden="true">&#9662;</span>
 						</summary>
 						<div class="accordion-body sidebar-buttons">
-							<button id="toggle-earth-interior-button" class="feature-button" type="button" data-i18n="btn.earthInterior">Strati interni della Terra</button>
-							<button id="toggle-em-field-button" class="feature-button" type="button" data-i18n="btn.emField">Campo elettromagnetico</button>
-							<button id="toggle-water-bodies-button" class="feature-button" type="button" data-i18n="btn.waterBodies">Laghi e fiumi</button>
+							<div class="feature-row">
+								<button id="toggle-earth-interior-button" class="feature-button" type="button" data-i18n="btn.earthInterior">Strati interni della Terra</button>
+								<button id="refresh-earth-interior" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-em-field-button" class="feature-button" type="button" data-i18n="btn.emField">Campo elettromagnetico</button>
+								<button id="refresh-em-field" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div class="feature-row">
+								<button id="toggle-water-bodies-button" class="feature-button" type="button" data-i18n="btn.waterBodies">Laghi e fiumi</button>
+								<button id="refresh-water-bodies" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
 							<div id="earth-layer-toggles" class="layer-toggles" style="display:none">
 								<button class="layer-toggle-btn" data-layer="0" type="button">Mantello sup.</button>
 								<button class="layer-toggle-btn" data-layer="1" type="button">Mantello inf.</button>
 								<button class="layer-toggle-btn" data-layer="2" type="button">Nucleo est.</button>
 								<button class="layer-toggle-btn" data-layer="3" type="button">Nucleo int.</button>
+							</div>
+							<!-- Faglie tettoniche -->
+							<div class="feature-row">
+								<button id="toggle-tectonic-button" class="feature-button" type="button">Faglie tettoniche</button>
+								<button id="refresh-tectonic" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div id="tectonic-legend" class="layer-filters" style="display:none;flex-wrap:wrap;gap:4px">
+								<button class="filter-chip active" data-tectonic-type="SUB" style="background:#ff3344;color:#fff">SUB — Subduzione</button>
+								<button class="filter-chip active" data-tectonic-type="CRB" style="background:#ff8800;color:#fff">CRB — Rift</button>
+								<button class="filter-chip active" data-tectonic-type="CTF" style="background:#ffcc00;color:#222">CTF — Faglia trasf.</button>
+								<button class="filter-chip active" data-tectonic-type="CCB" style="background:#ff6622;color:#fff">CCB — Conv. cont.</button>
+								<button class="filter-chip active" data-tectonic-type="OSR" style="background:#44aaff;color:#fff">OSR — Dorsale</button>
+								<button class="filter-chip active" data-tectonic-type="OTF" style="background:#88ccff;color:#222">OTF — Trasf. oc.</button>
+								<button class="filter-chip active" data-tectonic-type="OCB" style="background:#ff88cc;color:#222">OCB — Conv. oc.</button>
+							</div>
+							<!-- Vulcani attivi -->
+							<div class="feature-row">
+								<button id="toggle-volcanoes-button" class="feature-button" type="button">Vulcani attivi</button>
+								<button id="refresh-volcanoes" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div id="volcano-legend" class="layer-filters" style="display:none;flex-wrap:wrap;gap:4px">
+								<button class="filter-chip active" data-volcano-status="Erupting" style="background:#ff2200;color:#fff">In eruzione</button>
+								<button class="filter-chip active" data-volcano-status="Warning"  style="background:#ff8800;color:#fff">Allerta</button>
+								<button class="filter-chip active" data-volcano-status="Watch"    style="background:#ffee00;color:#222">Sorvegliato</button>
+								<button class="filter-chip active" data-volcano-status="Normal"   style="background:#44aaff;color:#fff">Normale</button>
+							</div>
+							<!-- Giacimenti minerali -->
+							<div class="feature-row">
+								<button id="toggle-minerals-button" class="feature-button" type="button">Giacimenti minerali</button>
+								<button id="refresh-minerals" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<!-- Giacimenti petrolio e gas -->
+							<div class="feature-row">
+								<button id="toggle-oilgas-button" class="feature-button" type="button">Giacimenti petrolio &amp; gas</button>
+								<button id="refresh-oilgas" class="refresh-btn" type="button" title="Aggiorna">&#8635;</button>
+							</div>
+							<div id="oilgas-filters" class="layer-filters" style="display:none;flex-wrap:wrap;gap:4px">
+								<button class="filter-chip active" data-oilgas="oil"   style="background:#ff6600;color:#fff">&#9679; Petrolio</button>
+								<button class="filter-chip active" data-oilgas="gas"   style="background:#ffee00;color:#222">&#9679; Gas naturale</button>
+								<button class="filter-chip active" data-oilgas="mixed" style="background:#ff9900;color:#fff">&#9679; Misto</button>
+							</div>
+							<div id="minerals-filters" class="layer-filters" style="display:none;flex-wrap:wrap;gap:4px">
+								<button class="filter-chip active" data-mineral="gold"       style="background:#ffd700;color:#222">Oro</button>
+								<button class="filter-chip active" data-mineral="silver"     style="background:#c0c0c0;color:#222">Argento</button>
+								<button class="filter-chip active" data-mineral="platinum"   style="background:#e8e8ff;color:#222">Platino</button>
+								<button class="filter-chip active" data-mineral="palladium"  style="background:#cce0ff;color:#222">Palladio</button>
+								<button class="filter-chip active" data-mineral="iron"       style="background:#ff6644;color:#fff">Ferro</button>
+								<button class="filter-chip active" data-mineral="copper"     style="background:#b87333;color:#fff">Rame</button>
+								<button class="filter-chip active" data-mineral="zinc"       style="background:#8899aa;color:#fff">Zinco</button>
+								<button class="filter-chip active" data-mineral="lead"       style="background:#778877;color:#fff">Piombo</button>
+								<button class="filter-chip active" data-mineral="nickel"     style="background:#99ddcc;color:#222">Nichel</button>
+								<button class="filter-chip active" data-mineral="aluminum"   style="background:#ddccaa;color:#222">Alluminio</button>
+								<button class="filter-chip active" data-mineral="tin"        style="background:#aabbcc;color:#222">Stagno</button>
+								<button class="filter-chip active" data-mineral="tungsten"   style="background:#556677;color:#fff">W</button>
+								<button class="filter-chip active" data-mineral="manganese"  style="background:#aa88bb;color:#fff">Mn</button>
+								<button class="filter-chip active" data-mineral="chromium"   style="background:#88bbaa;color:#222">Cr</button>
+								<button class="filter-chip active" data-mineral="molybdenum" style="background:#667788;color:#fff">Mo</button>
+								<button class="filter-chip active" data-mineral="diamond"    style="background:#88eeff;color:#222">Diamante</button>
+								<button class="filter-chip active" data-mineral="ruby"       style="background:#ff1144;color:#fff">Rubino</button>
+								<button class="filter-chip active" data-mineral="emerald"    style="background:#00cc55;color:#fff">Smeraldo</button>
+								<button class="filter-chip active" data-mineral="sapphire"   style="background:#2244ff;color:#fff">Zaffiro</button>
+								<button class="filter-chip active" data-mineral="opal"       style="background:#ffeedd;color:#222">Opale</button>
+								<button class="filter-chip active" data-mineral="amethyst"   style="background:#9955cc;color:#fff">Ametista</button>
+								<button class="filter-chip active" data-mineral="topaz"      style="background:#ffcc55;color:#222">Topazio</button>
+								<button class="filter-chip active" data-mineral="jade"       style="background:#44bb77;color:#fff">Giada</button>
+								<button class="filter-chip active" data-mineral="lithium"    style="background:#44ffdd;color:#222">Litio</button>
+								<button class="filter-chip active" data-mineral="cobalt"     style="background:#3366ff;color:#fff">Cobalto</button>
+								<button class="filter-chip active" data-mineral="rare_earth" style="background:#ff44bb;color:#fff">REE</button>
+								<button class="filter-chip active" data-mineral="niobium"    style="background:#dd88ff;color:#222">Nb</button>
+								<button class="filter-chip active" data-mineral="tantalum"   style="background:#aa55ee;color:#fff">Ta</button>
+								<button class="filter-chip active" data-mineral="vanadium"   style="background:#55aaff;color:#fff">V</button>
+								<button class="filter-chip active" data-mineral="titanium"   style="background:#bbddff;color:#222">Ti</button>
+								<button class="filter-chip active" data-mineral="coal"       style="background:#333;color:#fff">Carbone</button>
+								<button class="filter-chip active" data-mineral="uranium"    style="background:#88ff44;color:#222">Uranio</button>
+								<button class="filter-chip active" data-mineral="thorium"    style="background:#ccff88;color:#222">Torio</button>
+								<button class="filter-chip active" data-mineral="phosphate"  style="background:#ffaa33;color:#222">Fosfato</button>
+								<button class="filter-chip active" data-mineral="potash"     style="background:#ee6600;color:#fff">Potassa</button>
+								<button class="filter-chip active" data-mineral="sulfur"     style="background:#ffff33;color:#222">Zolfo</button>
+								<button class="filter-chip active" data-mineral="salt"       style="background:#fff;color:#222">Sale</button>
+								<button class="filter-chip active" data-mineral="graphite"   style="background:#555566;color:#fff">Grafite</button>
 							</div>
 						</div>
 					</details>
@@ -356,31 +642,41 @@
 				</div>
 			</aside>
 
-			<section class="search-dock panel">
-				<form id="location-search-form" class="search-form">
-					<div class="search-input-wrap">
-						<button
-							id="locate-me-button"
-							class="location-button"
-							type="button"
-							aria-label="Usa posizione attuale"
-							data-i18n-aria-label="search.locateMe"
-						>
-							<svg viewBox="0 0 24 24" aria-hidden="true">
-								<path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.2a2.8 2.8 0 1 1 0-5.6a2.8 2.8 0 0 1 0 5.6Z" fill="currentColor"/>
-							</svg>
-						</button>
-						<input
-							id="location-search"
-							type="search"
-							placeholder="Cerca una città o una località"
-							data-i18n-placeholder="search.placeholder"
-							autocomplete="off"
-						/>
-					</div>
-					<button id="location-search-button" type="submit" data-i18n="search.submit">Cerca</button>
-				</form>
-			</section>
+			<!-- 3D Compass sphere (click to reset earth rotation) -->
+			<div id="compass" title="Clicca per resettare la rotazione">
+				<canvas id="compass-canvas" width="128" height="128"></canvas>
+			</div>
+
+			<!-- Camera navigation controller (D-pad + zoom) -->
+			<div id="camera-controls">
+				<div class="cam-grid">
+					<button class="cam-btn cam-q" data-action="rotate-left" title="Ruota terra (Q)">&#8635;</button>
+					<button class="cam-btn cam-w" data-action="orbit-up" title="Su (W)">&#9650;</button>
+					<button class="cam-btn cam-e" data-action="rotate-right" title="Ruota terra (E)">&#8634;</button>
+					<button class="cam-btn cam-a" data-action="orbit-left" title="Sinistra (A)">&#9664;</button>
+					<button class="cam-btn cam-s" data-action="orbit-down" title="Giù (S)">&#9660;</button>
+					<button class="cam-btn cam-d" data-action="orbit-right" title="Destra (D)">&#9654;</button>
+				</div>
+				<div class="cam-zoom-row">
+					<button class="cam-btn cam-zoom-in" data-action="zoom-in" title="Zoom avanti (↑)">&#43;</button>
+					<button class="cam-btn cam-zoom-out" data-action="zoom-out" title="Zoom indietro (↓)">&#8722;</button>
+				</div>
+			</div>
+
+		</div>
+		<!-- Screenshot mode controls -->
+		<button id="screenshot-enter" class="screenshot-enter" type="button" title="Modalità screenshot">
+			<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 3v3H3M16 3v3h5M8 21v-3H3M16 21v-3h5"/></svg>
+		</button>
+		<div id="screenshot-toolbar" class="screenshot-toolbar" style="display:none">
+			<button id="screenshot-capture" class="screenshot-btn screenshot-capture" type="button" title="Cattura screenshot">
+				<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="4"/><path d="M5 7h2l2-3h6l2 3h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg>
+				<span>Screenshot</span>
+			</button>
+			<button id="screenshot-exit" class="screenshot-btn screenshot-exit" type="button" title="Esci dalla modalità screenshot">
+				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+				<span>Esci</span>
+			</button>
 		</div>
 		<div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
 		<!-- Floating info card for aircraft/satellite selection -->
@@ -392,15 +688,7 @@
 		</div>
 		<div id="status-bar">
 			<span id="sb-zoom"></span>
-			<span id="sb-weather" class="sb-item" style="display:none"></span>
-			<span id="sb-wind" class="sb-item" style="display:none"></span>
-			<span id="sb-satellites" class="sb-item" style="display:none"></span>
-			<span id="sb-aircraft" class="sb-item" style="display:none"></span>
-			<span id="sb-ships" class="sb-item" style="display:none"></span>
-			<span id="sb-traffic" class="sb-item" style="display:none"></span>
-			<span id="sb-lightning" class="sb-item" style="display:none"></span>
-			<span id="sb-clouds" class="sb-item" style="display:none"></span>
-			<span id="sb-osm" class="sb-item" style="display:none"></span>
+			<span id="sb-groups"></span>
 		</div>
 	</body>
 </html>

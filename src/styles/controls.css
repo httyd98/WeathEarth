@@ -212,6 +212,17 @@ button:disabled {
   }
 }
 
+.search-sidebar-panel {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(151, 192, 255, 0.06);
+  background: rgba(7, 16, 31, 0.40);
+}
+
+.search-sidebar-panel .search-form {
+  margin-top: 0;
+}
+
 #provider-api-key.key-state-required {
   border-color: #e53e3e;
   box-shadow: 0 0 0 2px rgba(229, 62, 62, 0.25);
@@ -227,4 +238,104 @@ button:disabled {
   color: var(--text-muted);
   margin-top: 4px;
   line-height: 1.4;
+}
+
+/* ── Screenshot mode ─────────────────────────────────────────────────────── */
+
+.screenshot-enter {
+  position: fixed;
+  bottom: 14px;
+  left: 14px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(7, 16, 31, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(100, 160, 255, 0.2);
+  color: rgba(160, 200, 255, 0.85);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.screenshot-enter:hover {
+  background: rgba(15, 31, 58, 0.9);
+  border-color: rgba(100, 160, 255, 0.5);
+  transform: none;
+}
+
+.screenshot-toolbar {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(7, 16, 31, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(100, 160, 255, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.screenshot-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.screenshot-capture {
+  color: #fff;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
+}
+
+.screenshot-capture:hover {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  transform: none;
+}
+
+.screenshot-exit {
+  color: rgba(200, 220, 255, 0.9);
+  background: rgba(15, 31, 58, 0.84);
+  border: 1px solid rgba(151, 192, 255, 0.16);
+  box-shadow: none;
+}
+
+.screenshot-exit:hover {
+  background: rgba(25, 45, 80, 0.84);
+  transform: none;
+}
+
+/* Hide all UI in screenshot mode — class added to body */
+body.screenshot-mode .hud,
+body.screenshot-mode .left-sidebar-toggle,
+body.screenshot-mode .right-sidebar,
+body.screenshot-mode #compass,
+body.screenshot-mode #camera-controls,
+body.screenshot-mode #status-bar,
+body.screenshot-mode .screenshot-enter,
+body.screenshot-mode #wind-altitude-slider,
+body.screenshot-mode .entity-card,
+body.screenshot-mode .snackbar {
+  display: none !important;
+}
+
+body.screenshot-mode .screenshot-toolbar {
+  display: flex !important;
 }

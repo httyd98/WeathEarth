@@ -333,6 +333,25 @@ export function disableSatellites() {
   disposeOrbitLine();
 }
 
+/** Re-fetch TLE data, merge by NORAD ID (keep existing satellites without a match). */
+export async function refreshSatellites() {
+  if (!_visible) return;
+  const tleText = await _fetchTLEData();
+  if (!tleText) return;
+  const fresh = _parseTLE(tleText);
+  // Build lookup by NORAD ID from fresh data
+  const freshMap = new Map(fresh.map(s => [s.satrec.satnum, s]));
+  // Replace matching, keep orphans
+  _satellites = _satellites.map(old => freshMap.get(old.satrec.satnum) ?? old);
+  // Add brand-new satellites not previously tracked
+  for (const s of fresh) {
+    if (!_satellites.find(o => o.satrec.satnum === s.satrec.satnum)) {
+      _satellites.push(s);
+    }
+  }
+  _updatePositions();
+}
+
 export function disposeOrbitLine() {
   if (_orbitLine) {
     scene.remove(_orbitLine);

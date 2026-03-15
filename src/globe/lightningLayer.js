@@ -346,6 +346,11 @@ export function buildLightningField(points) {
 /**
  * Stop lightning visualization and disconnect Blitzortung.
  */
+/** Force-rebuild bolts from latest weather data + Blitzortung buffer. */
+export function refreshLightning() {
+  _rebuildBoltsFromAllSources();
+}
+
 export function disableLightning() {
   if (_blitzortungActive) {
     stopBlitzortung();

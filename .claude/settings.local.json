@@ -34,7 +34,17 @@
       "Bash(npx vite:*)",
       "Bash(find /Users/eliaspiga/lavoro/personale/TerraCast/.claude/worktrees/funny-bose/public -type f \\\\\\(-name *.json -o -name *.geojson \\\\\\))",
       "WebFetch(domain:gibs.earthdata.nasa.gov)",
-      "Bash(curl -s \"https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities\")"
+      "Bash(curl -s \"https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities\")",
+      "Bash(head -20 grep -n \"refreshData\\\\|refresh\" /Users/eliaspiga/lavoro/personale/TerraCast/src/globe/cctvLayer.js)",
+      "Bash(head -20 grep -n \"refreshData\\\\|refresh\" /Users/eliaspiga/lavoro/personale/TerraCast/src/globe/natoLayer.js)",
+      "Bash(head -20 grep -n \"fetch\\\\|async function enable\\\\|NOAA\\\\|url\" /Users/eliaspiga/lavoro/personale/TerraCast/src/globe/volcanoLayer.js)",
+      "Bash(head -20 grep -n \"fetch\\\\|async function enable\\\\|async enable\" /Users/eliaspiga/lavoro/personale/TerraCast/src/globe/satelliteLayer.js)",
+      "Bash(head -30 grep -n \"fetch\\\\|async function enable\\\\|_volcanoes\\\\|_data\" /Users/eliaspiga/lavoro/personale/TerraCast/src/globe/volcanoLayer.js)",
+      "Bash(head -30 grep -n \"fetch\\\\|enable\\\\|buildLightning\\\\|_strikes\" /Users/eliaspiga/lavoro/personale/TerraCast/src/globe/lightningLayer.js)",
+      "Bash(head -20 grep -n \"fetch\\\\|enable\\\\|_aircraft\\\\|_flights\" /Users/eliaspiga/lavoro/personale/TerraCast/src/globe/aircraftLayer.js)",
+      "Bash(__NEW_LINE_0e7c8e723c7f0c5e__ python3 -c \":*)",
+      "Bash(head -15 grep -n \"showTimeZones\\\\|showWaterBodies\" /Users/eliaspiga/lavoro/personale/TerraCast/src/main.js)",
+      "Bash(head -20 grep -n \"isLand\\\\|land\\\\|continent\\\\|bbox\\\\|clipToOcean\" /Users/eliaspiga/lavoro/personale/TerraCast/src/globe/shipLayer.js)"
     ]
   }
 }

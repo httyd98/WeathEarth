@@ -14,32 +14,38 @@
 }
 
 .right-sidebar.collapsed {
-  transform: translateX(calc(100% - 44px));
+  transform: translateX(100%);
 }
 
 .sidebar-toggle-button {
-  position: relative;
-  width: 44px;
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(7, 16, 31, 0.6);
+  background: rgba(7, 16, 31, 0.75);
   backdrop-filter: blur(12px);
-  border: none;
-  border-right: 1px solid var(--panel-border);
+  border: 1px solid rgba(100, 160, 255, 0.2);
   color: var(--text);
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: none;
-  border-radius: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  border-radius: 50%;
   padding: 0;
-  transition: background 0.2s ease;
+  z-index: 5;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  font-size: 1rem;
 }
 
 .sidebar-toggle-button:hover {
-  background: rgba(15, 31, 58, 0.84);
-  transform: none;
+  background: rgba(15, 31, 58, 0.9);
+  border-color: rgba(100, 160, 255, 0.5);
+  transform: translateY(-50%);
 }
 
 .sidebar-arrow {
@@ -59,9 +65,10 @@
   align-content: start;
   overflow-y: auto;
   pointer-events: auto;
-  background: rgba(2, 4, 12, 0.82);
-  backdrop-filter: blur(16px);
-  border-left: 1px solid var(--panel-border);
+  background: rgba(2, 4, 12, 0.45);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-left: 1px solid rgba(100, 160, 255, 0.12);
 }
 
 .sidebar-group {
@@ -133,6 +140,17 @@
 
 .refresh-btn:active {
   background: rgba(140, 230, 255, 0.15);
+}
+
+@keyframes spin-refresh {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.refresh-btn.spinning {
+  animation: spin-refresh 0.7s linear infinite;
+  pointer-events: none;
+  color: rgba(140, 230, 255, 0.8);
 }
 
 /* Layer toggles (earth interior sub-buttons) */
@@ -350,12 +368,24 @@
   align-items: center;
   gap: 9px;
   padding: 11px 14px;
-  background: rgba(8, 17, 38, 0.92);
+  background: rgba(8, 17, 38, 0.72);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   cursor: pointer;
   user-select: none;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Active accordion: glowing highlight when any feature inside is ON */
+.accordion-item.has-active > .accordion-header {
+  background: rgba(14, 32, 70, 0.80);
+  border-color: rgba(120, 200, 255, 0.45);
+  box-shadow: 0 0 10px rgba(100, 170, 255, 0.18), inset 0 0 8px rgba(100, 170, 255, 0.05);
+}
+
+.accordion-item.has-active > .accordion-header .acc-label,
+.accordion-item.has-active > .accordion-header .acc-icon {
+  color: rgba(160, 220, 255, 0.95);
 }
 
 .accordion-header:hover {
@@ -402,7 +432,9 @@ details[open] > .accordion-header .acc-arrow {
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
   padding: 12px 12px 14px;
-  background: rgba(5, 11, 26, 0.88);
+  background: rgba(5, 11, 26, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 /* When accordion-body also has sidebar-buttons class, fix margin-top */
@@ -521,11 +553,7 @@ details[open] > .accordion-header .acc-arrow {
   }
 
   .right-sidebar.collapsed {
-    transform: translateX(calc(100% - 38px));
-  }
-
-  .sidebar-toggle-button {
-    width: 38px;
+    transform: translateX(100%);
   }
 }
 
@@ -554,4 +582,111 @@ details[open] > .accordion-header .acc-arrow {
 }
 .filter-chip:hover {
   border-color: rgba(100, 160, 255, 0.6);
+}
+
+/* ── 3D Compass ─────────────────────────────────────────────────────────── */
+
+#compass {
+  position: fixed;
+  bottom: 190px;
+  right: 350px;
+  z-index: 10;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 80px;
+  height: 80px;
+}
+
+.right-sidebar.collapsed ~ #compass {
+  right: 30px;
+}
+
+#compass-canvas {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: block;
+}
+
+/* ── Camera navigation controller ───────────────────────────────────────── */
+
+#camera-controls {
+  position: fixed;
+  bottom: 52px;
+  right: 350px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(2, 6, 18, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(100, 160, 255, 0.15);
+  border-radius: 12px;
+  pointer-events: auto;
+  transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+/* When the right sidebar is collapsed, hug the collapsed strip */
+.right-sidebar.collapsed ~ #camera-controls {
+  right: 30px;
+}
+
+.cam-grid {
+  display: grid;
+  grid-template-columns: 36px 36px 36px;
+  grid-template-rows: 36px 36px;
+  gap: 4px;
+}
+
+.cam-grid .cam-q { grid-column: 1; grid-row: 1; }
+.cam-grid .cam-w { grid-column: 2; grid-row: 1; }
+.cam-grid .cam-e { grid-column: 3; grid-row: 1; }
+.cam-grid .cam-a { grid-column: 1; grid-row: 2; }
+.cam-grid .cam-s { grid-column: 2; grid-row: 2; }
+.cam-grid .cam-d { grid-column: 3; grid-row: 2; }
+
+.cam-zoom-row {
+  display: flex;
+  gap: 4px;
+}
+
+.cam-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 40, 80, 0.5);
+  border: 1px solid rgba(100, 160, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(160, 200, 255, 0.85);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  padding: 0;
+  line-height: 1;
+}
+
+.cam-btn:hover {
+  background: rgba(40, 80, 140, 0.55);
+  border-color: rgba(100, 160, 255, 0.45);
+}
+
+.cam-btn:active,
+.cam-btn.pressed {
+  background: rgba(60, 120, 220, 0.45);
+  border-color: rgba(120, 180, 255, 0.7);
+  color: #fff;
+}
+
+.cam-zoom-in,
+.cam-zoom-out {
+  width: 52px;
+  font-size: 18px;
+  font-weight: bold;
 }
